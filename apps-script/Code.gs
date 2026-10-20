@@ -67,13 +67,32 @@ function doPost(e) {
   }
 }
 
-// Permite comprobar en el navegador que la URL funciona
-function doGet() {
-  return salida({ ok: true, servicio: 'Simulación que transforma territorio (RACR)', hojas: Object.keys(HOJAS) });
+// Comprobación de la conexión (navegador o botón «Probar conexión» del sitio)
+function doGet(e) {
+  const libro = obtenerLibro();
+  const r = { ok: true, servicio: 'Simulación que transforma territorio (RACR)', hojaDeCalculo: libro.getName(), url: libro.getUrl() };
+  const cb = e && e.parameter && e.parameter.callback;
+  if (cb && /^[\w.$]+$/.test(cb)) {
+    return ContentService.createTextOutput(cb + '(' + JSON.stringify(r) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return salida(r);
+}
+
+// Usa la hoja donde está el script; si el script se creó suelto en script.google.com,
+// crea (una sola vez) la hoja «Base de datos RACR» en Mi unidad de Google Drive.
+function obtenerLibro() {
+  const activo = SpreadsheetApp.getActiveSpreadsheet();
+  if (activo) return activo;
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('ID_HOJA');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (err) {} }
+  const nuevo = SpreadsheetApp.create('Base de datos RACR – Simulación que transforma territorio');
+  props.setProperty('ID_HOJA', nuevo.getId());
+  return nuevo;
 }
 
 function obtenerHoja(def) {
-  const libro = SpreadsheetApp.getActiveSpreadsheet();
+  const libro = obtenerLibro();
   let hoja = libro.getSheetByName(def.nombre);
   if (!hoja) {
     hoja = libro.insertSheet(def.nombre);
@@ -88,6 +107,20 @@ function obtenerHoja(def) {
 // Ejecute esta función una vez desde el editor para crear las cuatro pestañas y autorizar el script
 function prepararHojas() {
   Object.keys(HOJAS).forEach(function (k) { obtenerHoja(HOJAS[k]); });
+  const libro = obtenerLibro();
+  const h = libro.getSheetByName('Hoja 1') || libro.getSheetByName('Sheet1');
+  if (h && libro.getSheets().length > 1 && h.getLastRow() === 0) libro.deleteSheet(h);
+  Logger.log('Base de datos lista: ' + libro.getUrl());
+}
+
+// Ejecute esta función desde el editor para escribir un registro de prueba
+function probarRegistro() {
+  const r = doPost({ postData: { contents: JSON.stringify({
+    clave: CLAVE, tipo: 'caracterizacion', idRegistro: 'prueba-' + Date.now(), fecha: new Date().toISOString(),
+    idEstudiante: 'prueba', nombre: 'REGISTRO DE PRUEBA (puede borrarlo)', grado: 0, curso: '-'
+  }) } });
+  Logger.log(r.getContent());
+  Logger.log('Revise la pestaña «Caracterización» en: ' + obtenerLibro().getUrl());
 }
 
 function salida(obj) {

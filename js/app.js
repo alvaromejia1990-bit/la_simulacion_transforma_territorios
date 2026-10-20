@@ -415,8 +415,19 @@
         </div></div>`;
     }).join("");
     host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso"><span class="nube" id="nubeEstado"></span><br>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+      <p class="aviso"><span class="nube" id="nubeEstado"></span> <button class="btn btn-line btn-sm" id="probarNube">Probar conexión con la nube</button><span id="probarRes" style="display:block;margin-top:6px"></span>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
     pintarNube();
+    $("#probarNube").addEventListener("click", async () => {
+      const out = $("#probarRes"); out.textContent = "Probando conexión…";
+      const r = await Nube.probar();
+      const msg = {
+        "sin-url": "✘ Falta pegar la URL de la aplicación web en js/config.js (paso 4 de GUIA_NUBE.md).",
+        "url-invalida": "✘ La URL de js/config.js no es de Google Apps Script. Debe empezar por https://script.google.com/macros/s/ y terminar en /exec.",
+        "sin-respuesta": "✘ Google no respondió. Revise que la implementación sea «Aplicación web» con acceso «Cualquier usuario» y que haya autorizado el script."
+      };
+      if (r.ok) { out.innerHTML = `✔ Conectado a la hoja <b>${esc(r.hojaDeCalculo || "")}</b>. ` + (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir base de datos</a>` : ""); Nube.enviar(); }
+      else out.textContent = msg[r.motivo] || "✘ No fue posible conectar.";
+    });
     $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
     const csv = $('[data-act="csv"]', host); if (csv) csv.addEventListener("click", descargarCSV);
     const imp = $('[data-act="imprimir"]', host); if (imp) imp.addEventListener("click", () => window.print());

@@ -50,5 +50,21 @@ const Nube = (() => {
   window.addEventListener("online", enviar);
   setInterval(enviar, 45000);
   setTimeout(enviar, 1500);
-  return { registrar, enviar, estado, uid, alCambiar: f => oyentes.push(f) };
+  // Prueba la conexión con JSONP (doGet con callback): devuelve la hoja de cálculo conectada
+  function probar() {
+    return new Promise(res => {
+      if (typeof CONFIG_NUBE === "undefined" || !CONFIG_NUBE.url) return res({ ok: false, motivo: "sin-url" });
+      if (!activa()) return res({ ok: false, motivo: "url-invalida" });
+      const cb = "racrPing" + Date.now();
+      const sc = document.createElement("script");
+      const fin = r => { clearTimeout(t); delete window[cb]; sc.remove(); res(r); };
+      const t = setTimeout(() => fin({ ok: false, motivo: "sin-respuesta" }), 15000);
+      window[cb] = d => fin(Object.assign({ ok: !!d.ok }, d));
+      sc.onerror = () => fin({ ok: false, motivo: "sin-respuesta" });
+      sc.src = CONFIG_NUBE.url + (CONFIG_NUBE.url.includes("?") ? "&" : "?") + "callback=" + cb;
+      document.head.append(sc);
+    });
+  }
+
+  return { registrar, enviar, estado, uid, probar, alCambiar: f => oyentes.push(f) };
 })();

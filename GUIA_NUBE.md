@@ -39,6 +39,13 @@ La configuración se hace una sola vez y toma unos 10 minutos.
    ```
 3. Confirma con **Commit changes**. En uno o dos minutos el sitio publicado envía los datos a la hoja.
 
+## 5. Comprobar
+1. En el editor de Apps Script ejecuta **probarRegistro**. En la pestaña **Caracterización** de la hoja debe aparecer una fila de prueba.
+2. Abre el sitio publicado y presiona **Ctrl + F5** para recargarlo sin caché.
+3. Entra a **Mi progreso → Probar conexión con la nube**. Debe aparecer «✔ Conectado a la hoja…».
+
+> Si creaste el script en script.google.com y no desde la hoja, el código crea solo la hoja «Base de datos RACR – Simulación que transforma territorio» en tu Drive. Busca ese nombre en Drive.
+
 ## Notas
 - **Clave:** el sitio envía la clave `ENSMA-RACR-2026` y el script rechaza cualquier envío con otra clave. Si la cambias, hazlo en `apps-script/Code.gs` (`CLAVE`) y en `js/config.js` (`clave`), y vuelve a implementar.
 - **Cambios en el script:** si modificas el código, usa **Implementar → Gestionar implementaciones → ✏ → Versión: Nueva versión**. Así la URL no cambia.
