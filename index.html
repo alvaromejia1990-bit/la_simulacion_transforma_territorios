@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>La simulación para la transformación del territorio · ENSMA Girardot</title>
-<meta name="description" content="Centro de Interés del núcleo de Matemáticas y Tecnología de la IE Escuela Normal Superior María Auxiliadora de Girardot: diagnóstico, retos y simulaciones por niveles.">
+<title>Simulación que transforma territorio (RACR) · ENSMA Girardot</title>
+<meta name="description" content="Simulación que transforma territorio (RACR). Centro de Interés del núcleo de Matemáticas y Tecnología de la IE Escuela Normal Superior María Auxiliadora de Girardot: diagnóstico, retos y simulaciones por niveles.">
 <link rel="icon" type="image/png" href="img/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@
     </button>
     <nav class="nav" aria-label="Principal">
       <a href="#inicio">Inicio</a>
-      <a href="#proyecto">El proyecto</a>
+      <a href="#proyecto" data-vista="proyecto">El proyecto</a>
       <a href="#nivel-n1" class="lv lv-celeste">Nivel I</a>
       <a href="#nivel-n2" class="lv lv-rosa">Nivel II</a>
       <a href="#nivel-n3" class="lv lv-mixto">Nivel III</a>
@@ -42,8 +42,8 @@
     <div class="wrap hero-in">
       <div class="hero-txt">
         <p class="eyebrow">Núcleo de Matemáticas y Tecnología · Centro de Interés</p>
-        <h1>La simulación para la <span class="hl-rosa">transformación</span> del <span class="hl-celeste">territorio</span></h1>
-        <p class="lead">Un espacio para razonar, analizar, crear y resolver problemas reales de Girardot con matemáticas, programación e inteligencia artificial. Encuentra aquí tu diagnóstico, los retos y las simulaciones de tu nivel.</p>
+        <h1>Simulación que <span class="hl-rosa">transforma</span> <span class="hl-celeste">territorio</span> <span class="racr">(RACR)</span></h1>
+        <p class="lead">Un espacio para <b>R</b>azonar, <b>A</b>nalizar, <b>C</b>rear y <b>R</b>esolver problemas reales de Girardot con matemáticas, programación e inteligencia artificial. Encuentra aquí tu diagnóstico, los retos y las simulaciones de tu nivel.</p>
         <div class="btns">
           <a class="btn btn-rosa" href="#niveles">Elegir mi nivel</a>
           <a class="btn btn-line" href="#proyecto">Conocer el proyecto</a>
@@ -57,7 +57,7 @@
 
   <div class="wrap">
     <div class="ficha">
-      <div class="ficha-item"><span>Título</span><b>La simulación para la transformación del territorio</b></div>
+      <div class="ficha-item"><span>Título</span><b>Simulación que transforma territorio (RACR)</b></div>
       <div class="ficha-item"><span>Subcategoría</span><b>Simulación, matemática y tecnología</b></div>
       <div class="ficha-item"><span>Eje del Centro de Interés</span><b>Ciencia, tecnología e innovación</b></div>
       <div class="ficha-item"><span>Institución educativa</span><b>Escuela Normal Superior María Auxiliadora · Girardot</b></div>
@@ -93,9 +93,10 @@
     </div>
     <div class="nivel-cards" id="nivelCards"></div>
 
-    <div class="sec-head">
-      <p class="eyebrow">Nuestra comunidad</p>
-      <h2>Aprender haciendo, en equipo</h2>
+    <div class="sec-head sec-head-row">
+      <div><p class="eyebrow">Nuestra comunidad</p>
+      <h2>Aprender haciendo, en equipo</h2></div>
+      <a class="btn btn-line btn-sm" href="#galeria">Ver galería completa</a>
     </div>
     <div class="galeria">
       <figure class="g-big"><img src="img/trabajo-colaborativo-1.jpg" alt="Estudiantes trabajando en grupos dentro del aula" loading="lazy"><figcaption>Trabajo colaborativo en el aula</figcaption></figure>
@@ -109,13 +110,19 @@
 
 <!-- ======================= PROYECTO ======================= -->
 <section id="proyecto" class="view">
-  <div class="page-head">
+  <div class="page-head page-head-tabs">
     <div class="wrap">
       <p class="eyebrow">Proyecto institucional transversal · Horizonte 2026–2030</p>
       <h1>Pensamiento Matemático y Computacional a través de la Resolución de Problemas</h1>
+      <div class="tabs tabs-light" role="tablist">
+        <button class="tab" role="tab" data-tab="info" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>El proyecto</button>
+        <button class="tab" role="tab" data-tab="noticias" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2V5Z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>Noticias</button>
+        <button class="tab" role="tab" data-tab="galeria" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>Galería</button>
+      </div>
     </div>
   </div>
   <div class="wrap">
+  <div class="panel on" data-panel="info">
     <blockquote class="pregunta">
       <span>Pregunta orientadora</span>
       ¿Cómo fortalecer el pensamiento matemático y computacional de los estudiantes de la Escuela Normal Superior María Auxiliadora mediante la resolución de problemas reales que contribuyan a comprender y transformar el territorio de Girardot?
@@ -178,6 +185,22 @@
       <div class="persona"><b>Janer Gordillo</b><span>Docente</span></div>
     </div>
   </div>
+
+  <!-- Noticias -->
+  <div class="panel" data-panel="noticias">
+    <div class="panel-intro"><div><h2>Noticias</h2><p>Lo que pasa en el Centro de Interés y en el territorio.</p></div></div>
+    <div class="noticias" id="noticias"></div>
+  </div>
+
+  <!-- Galería -->
+  <div class="panel" data-panel="galeria">
+    <div class="panel-intro">
+      <div><h2>Galería</h2><p>Evidencias fotográficas del proceso.</p></div>
+      <div class="filtros" id="filtrosGaleria" role="group" aria-label="Filtrar galería"></div>
+    </div>
+    <div class="galeria-full" id="galeriaFull"></div>
+  </div>
+  </div>
 </section>
 
 <!-- ======================= NIVELES (se generan con JS) ======================= -->
@@ -222,8 +245,8 @@
     <img src="img/logo-pmc.jpg" alt="" width="64" height="64">
     <div>
       <b>IE Escuela Normal Superior María Auxiliadora · Girardot, Cundinamarca</b>
-      <p>Núcleo de Matemáticas y Tecnología · Centro de Interés «La simulación para la transformación del territorio» · Programa de Tutorías PTAFI 3.0</p>
-      <p class="tiny">Los resultados se guardan solo en este navegador. Descarga tu reporte en «Mi progreso» para entregarlo a tu docente.</p>
+      <p>Núcleo de Matemáticas y Tecnología · Centro de Interés «Simulación que transforma territorio (RACR)» · Programa de Tutorías PTAFI 3.0</p>
+      <p class="tiny">La caracterización y los resultados se guardan en la base de datos del Centro de Interés (Google Drive). En «Mi progreso» puedes ver el estado del envío y descargar tu reporte.</p>
     </div>
   </div>
 </footer>
@@ -231,8 +254,8 @@
 <!-- Registro del estudiante -->
 <dialog id="perfilDlg">
   <form method="dialog" id="perfilForm">
-    <h3>Registro del estudiante</h3>
-    <p class="sub">Tus datos permiten identificar tus resultados en el reporte para tu docente.</p>
+    <h3>Caracterización del estudiante</h3>
+    <p class="sub">Tus datos permiten identificar tus resultados. Se guardan en la base de datos del Centro de Interés y solo los consultan tus docentes.</p>
     <label>Nombre completo<input name="nombre" required maxlength="80" autocomplete="name"></label>
     <div class="row2">
       <label>Grado
@@ -243,6 +266,15 @@
       </label>
       <label>Curso<input name="curso" placeholder="Ej.: 902" maxlength="6"></label>
     </div>
+    <div class="row3">
+      <label>Edad<input name="edad" type="number" min="8" max="22" inputmode="numeric"></label>
+      <label>Dispositivo en casa
+        <select name="dispositivo"><option value="">—</option><option>Computador</option><option>Celular</option><option>Tableta</option><option>Varios</option><option>Ninguno</option></select>
+      </label>
+      <label>Internet en casa
+        <select name="internet"><option value="">—</option><option>Sí</option><option>No</option></select>
+      </label>
+    </div>
     <div class="dlg-btns">
       <button type="button" class="btn btn-line" value="cancel" id="perfilCancel">Cancelar</button>
       <button type="submit" class="btn btn-rosa" value="ok">Guardar</button>
@@ -250,8 +282,17 @@
   </form>
 </dialog>
 
+<dialog id="lightbox" class="lightbox" aria-label="Foto ampliada">
+  <figure><img alt=""><figcaption></figcaption></figure>
+  <button class="lb-btn lb-prev" aria-label="Anterior">‹</button>
+  <button class="lb-btn lb-next" aria-label="Siguiente">›</button>
+  <button class="lb-btn lb-close" aria-label="Cerrar">×</button>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="js/config.js"></script>
+<script src="js/nube.js"></script>
 <script src="js/data.js"></script>
 <script src="js/simulaciones.js"></script>
 <script src="js/app.js"></script>

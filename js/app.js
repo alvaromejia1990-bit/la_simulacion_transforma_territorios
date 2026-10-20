@@ -24,6 +24,12 @@
     clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("on"), 2600);
   }
 
+  function estudiante() {
+    const p = S.perfil || {};
+    return { idEstudiante: p.id || "", nombre: p.nombre || "", grado: p.grado || "", curso: p.curso || "" };
+  }
+  const nombreNivel = n => `${n.nombre} (${n.grados})`;
+
   const notaDe = pct => Math.round((1 + 4 * pct) * 10) / 10;
   const desempeno = nota => ESCALA.find(e => nota >= e.min);
   const badge = nota => { const d = desempeno(nota); return `<span class="desemp d-${d.clase}">${d.nombre}</span>`; };
@@ -33,15 +39,23 @@
   function pedirPerfil(cb) {
     perfilCallback = cb || null;
     const f = $("#perfilForm");
-    if (S.perfil) { f.nombre.value = S.perfil.nombre; f.grado.value = S.perfil.grado; f.curso.value = S.perfil.curso || ""; }
+    if (S.perfil) {
+      f.nombre.value = S.perfil.nombre; f.grado.value = S.perfil.grado; f.curso.value = S.perfil.curso || "";
+      f.edad.value = S.perfil.edad || ""; f.dispositivo.value = S.perfil.dispositivo || ""; f.internet.value = S.perfil.internet || "";
+    }
     $("#perfilDlg").showModal();
   }
   $("#perfilForm").addEventListener("submit", e => {
     const f = e.target;
     if (!f.nombre.value.trim() || !f.grado.value) { e.preventDefault(); return; }
-    S.perfil = { nombre: f.nombre.value.trim(), grado: +f.grado.value, curso: f.curso.value.trim() };
+    S.perfil = {
+      id: (S.perfil && S.perfil.id) || Nube.uid(),
+      nombre: f.nombre.value.trim(), grado: +f.grado.value, curso: f.curso.value.trim(),
+      edad: f.edad.value, dispositivo: f.dispositivo.value, internet: f.internet.value
+    };
     guardar();
-    toast("Datos guardados");
+    Nube.registrar("caracterizacion", Object.assign(estudiante(), { edad: S.perfil.edad, dispositivo: S.perfil.dispositivo, internet: S.perfil.internet }));
+    toast("Caracterización guardada");
     renderProgreso();
     if (perfilCallback) { const cb = perfilCallback; perfilCallback = null; setTimeout(cb, 50); }
   });
@@ -93,10 +107,36 @@
     $$(".tab", sec).forEach(b => b.addEventListener("click", () => mostrarTab(n.id, b.dataset.tab)));
     renderDiagInicio(n);
     renderRetos(n);
-    SIMULACIONES[n.id]($('[data-panel="sim"]', sec), () => {
+    const simHost = $('[data-panel="sim"]', sec);
+    SIMULACIONES[n.id](simHost, () => {
       if (!S.sims[n.id]) { S.sims[n.id] = true; guardar(); }
     });
+    agregarGuardadoSim(n, simHost);
   });
+
+  function agregarGuardadoSim(n, host) {
+    const box = document.createElement("div");
+    box.className = "sim-guardar";
+    box.innerHTML = `
+      <label for="concl-${n.id}"><b>Mis conclusiones</b> · responde las preguntas con base en tu escenario</label>
+      <textarea id="concl-${n.id}" maxlength="2000" placeholder="Escribe aquí lo que descubriste con la simulación..."></textarea>
+      <button class="btn btn-rosa btn-sm">Guardar mi escenario</button>`;
+    $(".reflexion", host).append(box);
+    $("button", box).addEventListener("click", () => {
+      const go = () => {
+        const est = host._estado || {};
+        Nube.registrar("simulacion", Object.assign(estudiante(), {
+          nivel: nombreNivel(n), simulacion: est.simulacion, parametros: est.parametros,
+          resultados: est.resultados, conclusiones: $("textarea", box).value.trim()
+        }));
+        S.sims[n.id] = true;
+        S.escenarios = (S.escenarios || 0) + 1;
+        guardar(); renderProgreso();
+        toast("Escenario guardado");
+      };
+      S.perfil ? go() : pedirPerfil(go);
+    });
+  }
 
   function mostrarTab(id, tab) {
     const sec = $("#nivel-" + id);
@@ -187,6 +227,13 @@
       respuestas: st.r
     };
     S.diag[n.id] = res; guardar();
+    const L = "ABCD";
+    Nube.registrar("diagnostico", Object.assign(estudiante(), {
+      nivel: nombreNivel(n), aciertos: ok, total: n.diagnostico.length,
+      nota: res.nota, desempeno: desempeno(res.nota).nombre,
+      ...Object.fromEntries(Object.keys(COMPETENCIAS).map(k => [k, Math.round(res.comp[k] * 100)])),
+      respuestas: st.r.map((r, i) => `${i + 1}:${r === null ? "-" : L[r]}${r === n.diagnostico[i].a ? "✔" : "✘"}`).join(" ")
+    }));
     renderResultado(n, res);
     renderProgreso();
     toast("Diagnóstico guardado en Mi progreso");
@@ -272,7 +319,15 @@
         const v = leerNumero(inp.value);
         if (isNaN(v)) { fb.className = "fb resultado mal on"; fb.textContent = "Escribe un número. Puedes usar coma para los decimales."; return; }
         const tol = Math.max(Math.abs(r.respuesta) * 0.005, 0.001);
-        if (Math.abs(v - r.respuesta) <= tol) {
+        const bien = Math.abs(v - r.respuesta) <= tol;
+        S.intentos = S.intentos || {};
+        S.intentos[r.id] = (S.intentos[r.id] || 0) + 1; guardar();
+        const enviar = () => Nube.registrar("reto", Object.assign(estudiante(), {
+          nivel: nombreNivel(n), reto: r.id, titulo: r.titulo, respuesta: inp.value.trim(),
+          correcta: bien ? "Sí" : "No", intento: S.intentos[r.id]
+        }));
+        S.perfil ? enviar() : pedirPerfil(enviar);
+        if (bien) {
           fb.className = "fb resultado ok on"; fb.innerHTML = `<b>¡Correcto!</b> ${r.solucion}`;
           card.classList.add("hecho");
           S.retos[n.id] = S.retos[n.id] || [];
@@ -360,17 +415,28 @@
         </div></div>`;
     }).join("");
     host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso">Tus resultados se guardan solamente en este navegador y en este dispositivo. Para entregarlos a tu docente, usa <b>Descargar reporte (CSV)</b> o <b>Imprimir / PDF</b>. Si usas un computador compartido, borra tus datos al terminar.</p>`;
+      <p class="aviso"><span class="nube" id="nubeEstado"></span><br>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+    pintarNube();
     $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
     const csv = $('[data-act="csv"]', host); if (csv) csv.addEventListener("click", descargarCSV);
     const imp = $('[data-act="imprimir"]', host); if (imp) imp.addEventListener("click", () => window.print());
     const bor = $('[data-act="borrar"]', host); if (bor) bor.addEventListener("click", () => {
       if (!confirm("¿Borrar tus datos y resultados de este navegador?")) return;
-      S = { perfil: null, diag: {}, retos: {}, sims: {} }; guardar();
+      S = { perfil: null, diag: {}, retos: {}, sims: {}, intentos: {} }; guardar();
       NIVELES.forEach(n => { renderDiagInicio(n); renderRetos(n); });
       renderProgreso(); toast("Datos borrados");
     });
   }
+
+  function pintarNube() {
+    const el = $("#nubeEstado"); if (!el) return;
+    const e = Nube.estado();
+    if (!e.activa) { el.className = "nube"; el.innerHTML = "<i></i>Nube no configurada: los datos quedan en este navegador" + (e.pendientes ? ` (${e.pendientes} pendientes)` : ""); return; }
+    if (e.pendientes) { el.className = "nube pend"; el.innerHTML = `<i></i>${e.pendientes} registro(s) pendiente(s) de envío${e.enLinea ? "…" : " · sin conexión"}`; return; }
+    el.className = "nube ok";
+    el.innerHTML = "<i></i>Todo guardado en la nube" + (e.ultimo ? " · último envío " + new Date(e.ultimo).toLocaleString("es-CO") : "");
+  }
+  Nube.alCambiar(pintarNube);
 
   function descargarCSV() {
     const p = S.perfil || {};
@@ -393,11 +459,71 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  /* ---------- El proyecto: pestañas, noticias y galería ---------- */
+  const secP = $("#proyecto");
+  function tabProyecto(tab) {
+    $$(".tab", secP).forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+    $$(".panel", secP).forEach(p => p.classList.toggle("on", p.dataset.panel === tab));
+  }
+  $$(".tab", secP).forEach(b => b.addEventListener("click", () => {
+    const destino = b.dataset.tab === "info" ? "#proyecto" : "#" + b.dataset.tab;
+    if (location.hash !== destino) history.replaceState(null, "", destino);
+    tabProyecto(b.dataset.tab);
+  }));
+
+  const fechaLarga = f => new Date(f + "T12:00:00").toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  $("#noticias").innerHTML = NOTICIAS.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).map((x, i) => `
+    <article class="noticia ${i === 0 ? "destacada" : ""}">
+      <img src="${x.img}" alt="" loading="lazy">
+      <div class="noticia-txt">
+        <div class="noticia-meta"><span class="pilar-chip">${esc(x.etiqueta)}</span><time datetime="${x.fecha}">${fechaLarga(x.fecha)}</time></div>
+        <h3>${esc(x.titulo)}</h3>
+        <p>${esc(x.resumen)}</p>
+        ${x.enlace ? `<a class="btn btn-rosa btn-sm" href="${x.enlace}">${esc(x.textoEnlace || "Ver más")}</a>` : ""}
+      </div>
+    </article>`).join("");
+
+  let filtroGal = "Todas", fotosVisibles = [], fotoActual = 0;
+  function renderGaleria() {
+    const cats = ["Todas", ...new Set(GALERIA.map(g => g.categoria))];
+    $("#filtrosGaleria").innerHTML = cats.map(c => `<button class="filtro" aria-pressed="${c === filtroGal}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
+    $$(".filtro").forEach(b => b.addEventListener("click", () => { filtroGal = b.dataset.c; renderGaleria(); }));
+    fotosVisibles = GALERIA.filter(g => filtroGal === "Todas" || g.categoria === filtroGal);
+    $("#galeriaFull").innerHTML = fotosVisibles.map((g, i) => `
+      <figure data-i="${i}" tabindex="0" role="button" aria-label="Ampliar: ${esc(g.titulo)}">
+        <img src="${g.src}" alt="${esc(g.titulo)}" loading="lazy">
+        <figcaption>${esc(g.titulo)}<small>${esc(g.categoria)} · ${esc(g.fecha)}</small></figcaption>
+      </figure>`).join("");
+    $$("#galeriaFull figure").forEach(f => {
+      f.addEventListener("click", () => abrirFoto(+f.dataset.i));
+      f.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirFoto(+f.dataset.i); } });
+    });
+  }
+  const lb = $("#lightbox");
+  function abrirFoto(i) {
+    fotoActual = (i + fotosVisibles.length) % fotosVisibles.length;
+    const g = fotosVisibles[fotoActual];
+    $("img", lb).src = g.src; $("img", lb).alt = g.titulo;
+    $("figcaption", lb).textContent = `${g.titulo} · ${g.categoria} · ${g.fecha}`;
+    if (!lb.open) lb.showModal();
+  }
+  $(".lb-prev", lb).addEventListener("click", () => abrirFoto(fotoActual - 1));
+  $(".lb-next", lb).addEventListener("click", () => abrirFoto(fotoActual + 1));
+  $(".lb-close", lb).addEventListener("click", () => lb.close());
+  lb.addEventListener("click", e => { if (e.target === lb) lb.close(); });
+  lb.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft") abrirFoto(fotoActual - 1);
+    if (e.key === "ArrowRight") abrirFoto(fotoActual + 1);
+  });
+  renderGaleria();
+
   /* ---------- Navegación ---------- */
   const VISTAS = ["inicio", "proyecto", "cronograma", "progreso", ...NIVELES.map(n => "nivel-" + n.id)];
   function navegar() {
     const h = (location.hash || "#inicio").slice(1);
-    let vista = VISTAS.includes(h) ? h : "inicio";
+    const subProyecto = { proyecto: "info", noticias: "noticias", galeria: "galeria" }[h];
+    let vista = subProyecto ? "proyecto" : VISTAS.includes(h) ? h : "inicio";
+    if (subProyecto) tabProyecto(subProyecto);
     $$(".view").forEach(v => v.classList.toggle("on", v.id === vista));
     $$(".nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + vista));
     $(".nav").classList.remove("open"); $(".menu-btn").setAttribute("aria-expanded", "false");

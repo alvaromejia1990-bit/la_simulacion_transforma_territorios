@@ -1,5 +1,5 @@
 /* ==========================================================
-   Centro de Interés · La simulación para la transformación del territorio
+   Simulación que transforma territorio (RACR) · Centro de Interés ENSMA
    Contenidos: competencias, diagnósticos, retos y cronograma.
    Para editar preguntas o retos, modifique solo este archivo.
    ========================================================== */
@@ -342,4 +342,38 @@ const FASES = [
   { anio: "2028", nombre: "Integración", resultado: "Proyectos interdisciplinarios institucionales." },
   { anio: "2029", nombre: "Consolidación", resultado: "Banco de experiencias y productos tecnológicos." },
   { anio: "2030", nombre: "Laboratorio vivo", resultado: "Reconocimiento institucional y transferencia de experiencias." }
+];
+
+/* ==========================================================
+   NOTICIAS (la más reciente primero)
+   Para publicar una noticia, copie un bloque y cambie sus datos.
+   ========================================================== */
+const NOTICIAS = [
+  { fecha: "2026-10-19", etiqueta: "Diagnóstico", img: "img/trabajo-colaborativo-2.jpg",
+    titulo: "Inicia el diagnóstico de competencias de 6.° a 11.°",
+    resumen: "Del 19 al 23 de octubre los estudiantes presentan el diagnóstico por niveles en este sitio. Valora seis competencias: razonamiento lógico-matemático, interpretación de datos, resolución de problemas, pensamiento computacional, creatividad y competencia digital.",
+    enlace: "#niveles", textoEnlace: "Presentar el diagnóstico" },
+  { fecha: "2026-10-16", etiqueta: "Estudiantes", img: "img/trabajo-colaborativo-1.jpg",
+    titulo: "Socialización del proyecto con los estudiantes",
+    resumen: "Los docentes responsables de cada grado presentaron el Centro de Interés y orientaron la actividad «¿Qué problemas observamos en nuestro entorno?», primer paso para reconocer el territorio." },
+  { fecha: "2026-10-14", etiqueta: "Encuentro docente", img: "img/comunidad-ensma.jpg",
+    titulo: "Primer encuentro docente del núcleo de Matemáticas",
+    resumen: "Se organizó la fase diagnóstica y se asignaron los responsables de la socialización por grado: Miguel Medina (11.° y 10.°), Álvaro Mejía (10.° y 9.°), Javier Leal (8.°), Norly Ramiro (7.°) y Fredy Ruge (6.°). También se acordó la herramienta diagnóstica por niveles." },
+  { fecha: "2026-10-02", etiqueta: "Divulgación", img: "img/logo-pmc.jpg",
+    titulo: "Presentamos el proyecto RACR: Razonar, Analizar, Crear y Resolver",
+    resumen: "La comunidad educativa conoció el nombre, el propósito y los pilares del proyecto institucional «Pensamiento Matemático y Computacional a través de la Resolución de Problemas» y la futura creación del Centro de Interés." }
+];
+
+/* ==========================================================
+   GALERÍA
+   Agregue fotos en la carpeta img/ y regístrelas aquí.
+   categoria: "Aula" | "Comunidad" | "Tecnología" | "Proyecto"
+   ========================================================== */
+const GALERIA = [
+  { src: "img/trabajo-colaborativo-1.jpg", titulo: "Trabajo colaborativo en el aula", categoria: "Aula", fecha: "Octubre 2026" },
+  { src: "img/trabajo-colaborativo-2.jpg", titulo: "Equipos resolviendo retos", categoria: "Aula", fecha: "Octubre 2026" },
+  { src: "img/trabajo-colaborativo-3.jpg", titulo: "Razonar, analizar, crear y resolver", categoria: "Aula", fecha: "Octubre 2026" },
+  { src: "img/tecnologia-aula.jpg", titulo: "Tecnología para aprender", categoria: "Tecnología", fecha: "2026" },
+  { src: "img/comunidad-ensma.jpg", titulo: "Comunidad educativa ENSMA", categoria: "Comunidad", fecha: "2026" },
+  { src: "img/logo-pmc.jpg", titulo: "Identidad del proyecto RACR", categoria: "Proyecto", fecha: "Octubre 2026" }
 ];

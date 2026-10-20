@@ -158,6 +158,9 @@ function simAgua(host, alUsar) {
     ];
     barChart($("a-ch"), { cats: ["Ducha", "Cepillado", "Sanitario"], series, unidad: "L/mes" });
     $("a-leg").innerHTML = leyenda(series);
+    host._estado = { simulacion: "El agua en mi casa",
+      parametros: { personas: p, minutosDucha: m, regadera: q === 12 ? "Convencional 12 L/min" : "Ahorradora 6 L/min", descargasSanitario: d, llaveAbiertaAlCepillarse: ll ? "Sí" : "No" },
+      resultados: { consumoMensual_L: Math.round(tTu), consumoMensual_m3: +(tTu / 1000).toFixed(2), porPersonaDia_L: Math.round(tTu / 30 / p), ahorroPosibleMes_L: Math.round(ahorro) } };
     $("a-txt").innerHTML = ahorro > 0
       ? `Tu casa usa <b>${fmt(tTu)} litros</b> al mes. El ahorro posible equivale a <b>${fmt(ahorro / 20)} botellones</b> de 20 litros (${fmt(100 * ahorro / tTu)} % menos).`
       : `¡Tus hábitos ya coinciden con el escenario de ahorro! Tu casa usa <b>${fmt(tTu)} litros</b> al mes.`;
@@ -220,6 +223,9 @@ function simReciclaje(host, alUsar) {
       { name: `Participación actual (${fmt(p * 100)} %)`, color: COL.rosa, values: xs.map((_, i) => kgMes * i), area: true },
       { name: `Meta: +20 puntos (${fmt(p2 * 100)} %)`, color: COL.celeste, values: xs.map((_, i) => kgMes2 * i), dash: "7 6" }
     ];
+    host._estado = { simulacion: "Campaña de reciclaje en la Normal",
+      parametros: { estudiantes: e, participacion_pct: Math.round(p * 100), botellasSemana: b, precioKg: pr },
+      resultados: { botellasMes: Math.round(botMes), kgMes: +kgMes.toFixed(1), ingresoMes: Math.round(kgMes * pr), kgAnio: +(kgMes * MESES).toFixed(1) } };
     lineChart($("r-ch"), { xs, series, xlabel: "Mes del año escolar · kg acumulados" });
     $("r-leg").innerHTML = leyenda(series);
     $("r-txt").innerHTML = `En 10 meses se recuperarían <b>${fmt(kgMes * MESES)} kg</b> de PET (unos <b>$${fmt(kgMes * MESES * pr)}</b>). Con 20 puntos más de participación serían <b>${fmt(kgMes2 * MESES)} kg</b>.`;
@@ -286,6 +292,9 @@ function simModelo(host, alUsar) {
     $("m-k1").textContent = fmt(sin[N]) + " kg";
     $("m-k2").textContent = fmt(con[N]) + " kg";
     $("m-k3").textContent = fmt(evit) + " kg";
+    host._estado = { simulacion: "Residuos en la ribera del Magdalena",
+      parametros: { modelo: mod === "exp" ? "Exponencial" : "Lineal", R0_kg: r0, crecimiento_pct: +(g * 100).toFixed(1), reduccion_pct: Math.round(red * 100), mesInicioCampana: ini },
+      resultados: { mes24SinCampana_kg: Math.round(sin[N]), mes24ConCampana_kg: Math.round(con[N]), evitados24m_kg: Math.round(evit) } };
     const xs = Array.from({ length: N + 1 }, (_, i) => String(i));
     const series = [
       { name: "Sin campaña", color: COL.rosa, values: sin, area: true },
