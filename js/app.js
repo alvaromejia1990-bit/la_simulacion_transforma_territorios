@@ -415,8 +415,9 @@
         </div></div>`;
     }).join("");
     host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso"><span class="nube" id="nubeEstado"></span> <button class="btn btn-line btn-sm" id="probarNube">Probar conexión con la nube</button><span id="probarRes" style="display:block;margin-top:6px"></span>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+      <p class="aviso"><span class="nube" id="nubeEstado"></span> <button class="btn btn-line btn-sm" id="probarNube">Probar conexión con la nube</button> <button class="btn btn-line btn-sm" id="reenviarNube">Reenviar mis datos</button><span id="probarRes" style="display:block;margin-top:6px"></span>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
     pintarNube();
+    $("#reenviarNube").addEventListener("click", reenviarTodo);
     $("#probarNube").addEventListener("click", async () => {
       const out = $("#probarRes"); out.textContent = "Probando conexión…";
       const r = await Nube.probar();
@@ -425,7 +426,11 @@
         "url-invalida": "✘ La URL de js/config.js no es de Google Apps Script. Debe empezar por https://script.google.com/macros/s/ y terminar en /exec.",
         "sin-respuesta": "✘ Google no respondió. Revise que la implementación sea «Aplicación web» con acceso «Cualquier usuario» y que haya autorizado el script."
       };
-      if (r.ok) { out.innerHTML = `✔ Conectado a la hoja <b>${esc(r.hojaDeCalculo || "")}</b>. ` + (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir base de datos</a>` : ""); Nube.enviar(); }
+      if (r.ok) {
+        const cuenta = r.registros ? " Registros guardados: " + Object.entries(r.registros).map(([k, v]) => `${k} ${v}`).join(" · ") + "." : "";
+        out.innerHTML = `✔ Conectado a la hoja <b>${esc(r.hojaDeCalculo || "")}</b>.${esc(cuenta)} ` + (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir esa hoja</a>` : "");
+        Nube.enviar();
+      }
       else out.textContent = msg[r.motivo] || "✘ No fue posible conectar.";
     });
     $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
@@ -439,11 +444,43 @@
     });
   }
 
+  // Vuelve a poner en la cola todo lo guardado en este navegador (ids fijos: no se duplica en la hoja)
+  function reenviarTodo() {
+    if (!S.perfil) { pedirPerfil(reenviarTodo); return; }
+    const p = S.perfil; let n = 0;
+    Nube.registrar("caracterizacion", Object.assign(estudiante(), {
+      idRegistro: "car-" + p.id + "-" + [...[p.nombre, p.grado, p.curso, p.edad, p.dispositivo, p.internet].join("|")].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >>> 0, 5381).toString(36),
+      edad: p.edad, dispositivo: p.dispositivo, internet: p.internet })); n++;
+    NIVELES.forEach(nv => {
+      const dg = S.diag[nv.id];
+      if (dg) {
+        const L = "ABCD";
+        Nube.registrar("diagnostico", Object.assign(estudiante(), {
+          idRegistro: "dia-" + p.id + "-" + nv.id + "-" + dg.fecha, fecha: dg.fecha,
+          nivel: nombreNivel(nv), aciertos: dg.aciertos, total: dg.total, nota: dg.nota, desempeno: desempeno(dg.nota).nombre,
+          ...Object.fromEntries(Object.keys(COMPETENCIAS).map(k => [k, Math.round((dg.comp[k] || 0) * 100)])),
+          respuestas: (dg.respuestas || []).map((r, i) => `${i + 1}:${r === null ? "-" : L[r]}${r === nv.diagnostico[i].a ? "✔" : "✘"}`).join(" ")
+        })); n++;
+      }
+      (S.retos[nv.id] || []).forEach(rid => {
+        const r = nv.retos.find(x => x.id === rid); if (!r) return;
+        Nube.registrar("reto", Object.assign(estudiante(), {
+          idRegistro: "ret-" + p.id + "-" + rid, nivel: nombreNivel(nv), reto: rid, titulo: r.titulo,
+          respuesta: String(r.respuesta), correcta: "Sí", intento: (S.intentos && S.intentos[rid]) || ""
+        })); n++;
+      });
+    });
+    toast(`${n} registro(s) en cola para enviar a la nube`);
+  }
+
   function pintarNube() {
     const el = $("#nubeEstado"); if (!el) return;
     const e = Nube.estado();
     if (!e.activa) { el.className = "nube"; el.innerHTML = "<i></i>Nube no configurada: los datos quedan en este navegador" + (e.pendientes ? ` (${e.pendientes} pendientes)` : ""); return; }
-    if (e.pendientes) { el.className = "nube pend"; el.innerHTML = `<i></i>${e.pendientes} registro(s) pendiente(s) de envío${e.enLinea ? "…" : " · sin conexión"}`; return; }
+    if (e.pendientes) {
+      const motivo = !e.enLinea ? " · sin conexión" : e.error === "no-confirmado" ? " · Google no confirmó el guardado (revise la implementación y la clave)" : e.error ? " · reintentando" : "…";
+      el.className = "nube pend"; el.innerHTML = `<i></i>${e.pendientes} registro(s) pendiente(s) de envío${motivo}`; return;
+    }
     el.className = "nube ok";
     el.innerHTML = "<i></i>Todo guardado en la nube" + (e.ultimo ? " · último envío " + new Date(e.ultimo).toLocaleString("es-CO") : "");
   }
