@@ -4,7 +4,7 @@
    o la nube no está configurada, se reintenta automáticamente después.
    ========================================================== */
 const Nube = (() => {
-  const QK = "ci-ensma-nube-pendientes", LK = "ci-ensma-nube-ultimo";
+  const QK = "ci-ensma-nube-pendientes", LK = "ci-ensma-nube-ultimo", CK = "ci-ensma-nube-confirmados";
   const leer = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
   const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   const cola = () => leer(QK) || [];
@@ -20,8 +20,17 @@ const Nube = (() => {
   }
   function avisar() { const e = estado(); oyentes.forEach(f => { try { f(e); } catch (x) {} }); }
 
+  const confirmados = () => leer(CK) || [];
+  const confirmado = id => confirmados().includes(id);
+  function marcarConfirmado(id) {
+    const c = confirmados(); if (c.includes(id)) return;
+    c.push(id); escribir(CK, c.slice(-1000));
+  }
+
   function registrar(tipo, datos) {
-    const item = Object.assign({ idRegistro: uid(), tipo, fecha: new Date().toISOString() }, datos);
+    const item = Object.assign({ tipo, fecha: new Date().toISOString() }, datos);
+    if (!item.idRegistro) item.idRegistro = uid();
+    if (confirmado(item.idRegistro)) return;
     const c = cola();
     if (c.some(x => x.idRegistro === item.idRegistro)) { enviar(); return; }
     c.push(item); escribir(QK, c);
@@ -66,6 +75,7 @@ const Nube = (() => {
           r = v ? (v.existe ? { ok: true } : { ok: false, error: "Google no confirmó el guardado" }) : null;
         }
         if (r && r.ok) {
+          marcarConfirmado(item.idRegistro);
           escribir(QK, cola().filter(x => x.idRegistro !== item.idRegistro));
           memoria = memoria.filter(x => x.idRegistro !== item.idRegistro);
           escribir(LK, new Date().toISOString());
@@ -82,6 +92,14 @@ const Nube = (() => {
   }
 
   window.addEventListener("online", enviar);
+  // Al cerrar o salir de la página, intenta entregar lo pendiente (Google descarta duplicados);
+  // la confirmación se hace en la siguiente visita.
+  window.addEventListener("pagehide", () => {
+    if (!activa() || !navigator.sendBeacon) return;
+    cola().concat(memoria).slice(0, 20).forEach(item => {
+      try { navigator.sendBeacon(CONFIG_NUBE.url, new Blob([JSON.stringify(Object.assign({ clave: CONFIG_NUBE.clave }, item))], { type: "text/plain;charset=utf-8" })); } catch (e) {}
+    });
+  });
   setInterval(enviar, 45000);
   setTimeout(enviar, 1500);
   // Prueba la conexión con JSONP (doGet con callback): devuelve la hoja de cálculo conectada
@@ -102,5 +120,5 @@ const Nube = (() => {
     return d || { ok: false, error: "Google no respondió" };
   }
 
-  return { registrar, enviar, estado, uid, probar, descartar, admin, alCambiar: f => oyentes.push(f) };
+  return { registrar, enviar, estado, uid, probar, descartar, admin, confirmado, alCambiar: f => oyentes.push(f) };
 })();

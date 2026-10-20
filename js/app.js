@@ -29,6 +29,11 @@
     return { idEstudiante: p.id || "", nombre: p.nombre || "", grado: p.grado || "", curso: p.curso || "" };
   }
   const nombreNivel = n => `${n.nombre} (${n.grados})`;
+  // Identificadores fijos: el mismo registro siempre tiene el mismo id (la hoja nunca lo duplica)
+  const hash = t => [...String(t)].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >>> 0, 5381).toString(36);
+  const idCar = p => "car-" + p.id + "-" + hash([p.nombre, p.grado, p.curso, p.edad, p.dispositivo, p.internet].join("|"));
+  const idDia = (p, nv, fecha) => "dia-" + p.id + "-" + nv.id + "-" + fecha;
+  const idRetoOk = (p, rid) => "ret-" + p.id + "-" + rid;
 
   const notaDe = pct => Math.round((1 + 4 * pct) * 10) / 10;
   const desempeno = nota => ESCALA.find(e => nota >= e.min);
@@ -54,7 +59,7 @@
       edad: f.edad.value, dispositivo: f.dispositivo.value, internet: f.internet.value
     };
     guardar();
-    Nube.registrar("caracterizacion", Object.assign(estudiante(), { edad: S.perfil.edad, dispositivo: S.perfil.dispositivo, internet: S.perfil.internet }));
+    Nube.registrar("caracterizacion", Object.assign(estudiante(), { idRegistro: idCar(S.perfil), edad: S.perfil.edad, dispositivo: S.perfil.dispositivo, internet: S.perfil.internet }));
     toast("Caracterización guardada");
     renderProgreso();
     if (perfilCallback) { const cb = perfilCallback; perfilCallback = null; setTimeout(cb, 50); }
@@ -229,6 +234,7 @@
     S.diag[n.id] = res; guardar();
     const L = "ABCD";
     Nube.registrar("diagnostico", Object.assign(estudiante(), {
+      idRegistro: S.perfil ? idDia(S.perfil, n, res.fecha) : undefined, fecha: res.fecha,
       nivel: nombreNivel(n), aciertos: ok, total: n.diagnostico.length,
       nota: res.nota, desempeno: desempeno(res.nota).nombre,
       ...Object.fromEntries(Object.keys(COMPETENCIAS).map(k => [k, Math.round(res.comp[k] * 100)])),
@@ -322,7 +328,9 @@
         const bien = Math.abs(v - r.respuesta) <= tol;
         S.intentos = S.intentos || {};
         S.intentos[r.id] = (S.intentos[r.id] || 0) + 1; guardar();
+        const primeraVez = bien && !(S.retos[n.id] || []).includes(r.id);
         const enviar = () => Nube.registrar("reto", Object.assign(estudiante(), {
+          idRegistro: primeraVez && S.perfil ? idRetoOk(S.perfil, r.id) : undefined,
           nivel: nombreNivel(n), reto: r.id, titulo: r.titulo, respuesta: inp.value.trim(),
           correcta: bien ? "Sí" : "No", intento: S.intentos[r.id]
         }));
@@ -415,20 +423,8 @@
         </div></div>`;
     }).join("");
     host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso"><span class="nube" id="nubeEstado"></span> <button class="btn btn-line btn-sm" id="probarNube">Probar conexión con la nube</button> <button class="btn btn-line btn-sm" id="reenviarNube">Reenviar mis datos</button> <small style="color:var(--gris-2)">Versión del sitio 1.6</small><span id="probarRes" style="display:block;margin-top:6px"></span>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive, que solo pueden consultar los administradores. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+      <p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.7</small><br>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive, que solo pueden consultar los administradores. El envío es automático: si no hay internet, se guardan aquí y se envían solos cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
     pintarNube();
-    $("#reenviarNube").addEventListener("click", reenviarTodo);
-    $("#probarNube").addEventListener("click", async () => {
-      const out = $("#probarRes"); out.textContent = "Probando conexión…";
-      const r = await Nube.probar();
-      const msg = {
-        "sin-url": "✘ Falta pegar la URL de la aplicación web en js/config.js (paso 4 de GUIA_NUBE.md).",
-        "url-invalida": "✘ La URL de js/config.js no es de Google Apps Script. Debe empezar por https://script.google.com/macros/s/ y terminar en /exec.",
-        "sin-respuesta": "✘ Google no respondió. Revise que la implementación sea «Aplicación web» con acceso «Cualquier usuario» y que haya autorizado el script."
-      };
-      if (r.ok) { out.textContent = "✔ La conexión con la base de datos del Centro de Interés funciona."; Nube.enviar(); }
-      else out.textContent = msg[r.motivo] || "✘ No fue posible conectar.";
-    });
     $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
     const csv = $('[data-act="csv"]', host); if (csv) csv.addEventListener("click", descargarCSV);
     const imp = $('[data-act="imprimir"]', host); if (imp) imp.addEventListener("click", () => window.print());
@@ -440,33 +436,36 @@
     });
   }
 
-  // Vuelve a poner en la cola todo lo guardado en este navegador (ids fijos: no se duplica en la hoja)
-  function reenviarTodo() {
-    if (!S.perfil) { pedirPerfil(reenviarTodo); return; }
-    const p = S.perfil; let n = 0;
-    Nube.registrar("caracterizacion", Object.assign(estudiante(), {
-      idRegistro: "car-" + p.id + "-" + [...[p.nombre, p.grado, p.curso, p.edad, p.dispositivo, p.internet].join("|")].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >>> 0, 5381).toString(36),
-      edad: p.edad, dispositivo: p.dispositivo, internet: p.internet })); n++;
+  // Sincronización automática: pone en cola lo guardado en este navegador que la nube aún no confirmó.
+  // Se ejecuta sola (al abrir el sitio, al volver a la pestaña, al recuperar internet y cada 5 minutos).
+  function sincronizar() {
+    if (!S.perfil || !Nube.estado().activa) return;
+    const p = S.perfil;
+    if (!p.id) { p.id = Nube.uid(); guardar(); }
+    const pendiente = id => !Nube.confirmado(id);
+    if (pendiente(idCar(p))) Nube.registrar("caracterizacion", Object.assign(estudiante(), {
+      idRegistro: idCar(p), edad: p.edad, dispositivo: p.dispositivo, internet: p.internet }));
     NIVELES.forEach(nv => {
       const dg = S.diag[nv.id];
-      if (dg) {
+      if (dg && pendiente(idDia(p, nv, dg.fecha))) {
         const L = "ABCD";
         Nube.registrar("diagnostico", Object.assign(estudiante(), {
-          idRegistro: "dia-" + p.id + "-" + nv.id + "-" + dg.fecha, fecha: dg.fecha,
+          idRegistro: idDia(p, nv, dg.fecha), fecha: dg.fecha,
           nivel: nombreNivel(nv), aciertos: dg.aciertos, total: dg.total, nota: dg.nota, desempeno: desempeno(dg.nota).nombre,
           ...Object.fromEntries(Object.keys(COMPETENCIAS).map(k => [k, Math.round((dg.comp[k] || 0) * 100)])),
           respuestas: (dg.respuestas || []).map((r, i) => `${i + 1}:${r === null ? "-" : L[r]}${r === nv.diagnostico[i].a ? "✔" : "✘"}`).join(" ")
-        })); n++;
+        }));
       }
       (S.retos[nv.id] || []).forEach(rid => {
-        const r = nv.retos.find(x => x.id === rid); if (!r) return;
+        const r = nv.retos.find(x => x.id === rid);
+        if (!r || !pendiente(idRetoOk(p, rid))) return;
         Nube.registrar("reto", Object.assign(estudiante(), {
-          idRegistro: "ret-" + p.id + "-" + rid, nivel: nombreNivel(nv), reto: rid, titulo: r.titulo,
+          idRegistro: idRetoOk(p, rid), nivel: nombreNivel(nv), reto: rid, titulo: r.titulo,
           respuesta: String(r.respuesta), correcta: "Sí", intento: (S.intentos && S.intentos[rid]) || ""
-        })); n++;
+        }));
       });
     });
-    toast(`${n} registro(s) en cola para enviar a la nube`);
+    Nube.enviar();
   }
 
   function pintarNube() {
@@ -675,4 +674,8 @@
   renderCronograma();
   renderProgreso();
   navegar();
+  setTimeout(sincronizar, 1200);
+  setInterval(sincronizar, 5 * 60 * 1000);
+  window.addEventListener("online", sincronizar);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sincronizar(); });
 })();
