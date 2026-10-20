@@ -532,6 +532,14 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
 .nube.ok i { background: var(--ok); }
 .nube.pend i { background: #E0A100; }
 
+/* ---------- Panel administrador ---------- */
+.tabla-wrap { overflow-x: auto; border: 1px solid var(--borde); border-radius: var(--r-m); }
+.tabla { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.tabla th { text-align: left; background: var(--fondo-2); color: var(--azul); font-weight: 600; padding: 10px 14px; white-space: nowrap; }
+.tabla td { padding: 10px 14px; border-top: 1px solid var(--borde); }
+.comp-row b { text-align: right; color: var(--azul); }
+#adminBody .comp-row { grid-template-columns: minmax(110px, 1.1fr) 1fr 52px; gap: 10px; font-size: .84rem; }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 1020px) {
   .menu-btn { display: block; }
@@ -547,6 +555,7 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
   .pilares, .ruta { grid-template-columns: 1fr 1fr; }
   .nivel-cards, .retos, .prog-grid { grid-template-columns: 1fr; }
   .noticias { grid-template-columns: 1fr; }
+  #adminBody .kpis { grid-template-columns: repeat(3, 1fr) !important; }
   .galeria-full { grid-template-columns: 1fr 1fr; }
   .metas, .equipo { grid-template-columns: 1fr 1fr; }
   .sim-body { grid-template-columns: 1fr; }
@@ -571,7 +580,7 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
   .resultado-top { grid-template-columns: 1fr; justify-items: start; }
   .comp-row { grid-template-columns: 1fr 80px; }
   .comp-row .track { grid-column: 1 / -1; grid-row: 2; }
-  .kpis { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: 1fr !important; }
   .noticia, .noticia.destacada { grid-template-columns: 1fr; }
   .noticia img, .noticia.destacada img { min-height: 0; aspect-ratio: 16 / 9; }
   .row3 { grid-template-columns: 1fr 1fr; }

@@ -22,6 +22,7 @@ Sitio web interactivo de consulta y seguimiento del **Centro de Interés** del n
   - **Simulaciones**: Nivel I: el agua en mi casa · Nivel II: campaña de reciclaje · Nivel III: modelo de residuos en la ribera del Magdalena (lineal y exponencial).
 - **Cronograma**: fase 2026 con el estado de cada actividad (realizada, en curso, próxima), que se calcula con la fecha del día.
 - **Mi progreso**: caracterización del estudiante, resultados por nivel, estado del envío a la nube, descarga de un reporte CSV e impresión a PDF.
+- **Panel del administrador** (`#admin`, enlace en el pie de página): protegido con la clave de administrador definida en Apps Script. Muestra los estudiantes por grado, la línea base por nivel y competencia, el desempeño en los retos, los escenarios guardados y los últimos diagnósticos.
 
 > **Datos en la nube:** la caracterización, los diagnósticos, los intentos de los retos y los escenarios de simulación se guardan en una hoja de Google Sheets en Drive mediante Google Apps Script. Para activarlo siga **[GUIA_NUBE.md](GUIA_NUBE.md)** y pegue la URL en `js/config.js`. Mientras no esté configurado, los datos quedan en el navegador del estudiante.
 

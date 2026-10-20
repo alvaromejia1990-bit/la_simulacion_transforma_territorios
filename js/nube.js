@@ -53,22 +53,26 @@ const Nube = (() => {
       const lote = cola().concat(memoria);
       const fallidos = [];
       for (const item of lote) {
-        await fetch(CONFIG_NUBE.url, {
-          method: "POST", mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(Object.assign({ clave: CONFIG_NUBE.clave }, item))
-        });
-        // Solo se borra de la cola cuando Google confirma que la fila existe (2 intentos de verificación)
-        let v = await jsonp({ verificar: item.idRegistro });
-        if (!v || !v.existe) { await esperar(3000); v = await jsonp({ verificar: item.idRegistro }); }
-        if (v && v.existe) {
+        const cuerpo = JSON.stringify(Object.assign({ clave: CONFIG_NUBE.clave }, item));
+        let r = null;
+        if (encodeURIComponent(cuerpo).length < 6500) {
+          // Canal principal: GET con respuesta legible (la misma vía de «Probar conexión»)
+          r = await jsonp({ datos: cuerpo });
+        } else {
+          // Registros muy largos: POST y luego verificación
+          await fetch(CONFIG_NUBE.url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: cuerpo });
+          let v = await jsonp({ verificar: item.idRegistro });
+          if (!v || !v.existe) { await esperar(3000); v = await jsonp({ verificar: item.idRegistro }); }
+          r = v ? (v.existe ? { ok: true } : { ok: false, error: "Google no confirmó el guardado" }) : null;
+        }
+        if (r && r.ok) {
           escribir(QK, cola().filter(x => x.idRegistro !== item.idRegistro));
           memoria = memoria.filter(x => x.idRegistro !== item.idRegistro);
           escribir(LK, new Date().toISOString());
         } else {
-          ultimoError = v ? "no-confirmado" : "sin-respuesta";
+          ultimoError = r ? (r.error || "no-confirmado") : "sin-respuesta";
           fallidos.push(item.tipo);
-          if (!v) break;            // Google no responde: se reintenta más tarde
+          if (!r) break;            // Google no responde: se reintenta más tarde
         }
         avisar();
       }
@@ -91,5 +95,12 @@ const Nube = (() => {
   // Descarta los registros pendientes (solo si el docente lo decide)
   function descartar() { escribir(QK, []); memoria = []; avisar(); }
 
-  return { registrar, enviar, estado, uid, probar, descartar, alCambiar: f => oyentes.push(f) };
+  // Consulta del panel de administrador (requiere la clave de administrador definida en Apps Script)
+  async function admin(clave) {
+    if (!activa()) return { ok: false, error: "La nube no está configurada en js/config.js" };
+    const d = await jsonp({ admin: clave });
+    return d || { ok: false, error: "Google no respondió" };
+  }
+
+  return { registrar, enviar, estado, uid, probar, descartar, admin, alCambiar: f => oyentes.push(f) };
 })();

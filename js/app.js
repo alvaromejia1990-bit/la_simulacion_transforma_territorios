@@ -415,7 +415,7 @@
         </div></div>`;
     }).join("");
     host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso"><span class="nube" id="nubeEstado"></span> <button class="btn btn-line btn-sm" id="probarNube">Probar conexión con la nube</button> <button class="btn btn-line btn-sm" id="reenviarNube">Reenviar mis datos</button><span id="probarRes" style="display:block;margin-top:6px"></span>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+      <p class="aviso"><span class="nube" id="nubeEstado"></span> <button class="btn btn-line btn-sm" id="probarNube">Probar conexión con la nube</button> <button class="btn btn-line btn-sm" id="reenviarNube">Reenviar mis datos</button> <small style="color:var(--gris-2)">Versión del sitio 1.6</small><span id="probarRes" style="display:block;margin-top:6px"></span>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive, que solo pueden consultar los administradores. Si no hay internet, se guardan aquí y se envían cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
     pintarNube();
     $("#reenviarNube").addEventListener("click", reenviarTodo);
     $("#probarNube").addEventListener("click", async () => {
@@ -426,15 +426,7 @@
         "url-invalida": "✘ La URL de js/config.js no es de Google Apps Script. Debe empezar por https://script.google.com/macros/s/ y terminar en /exec.",
         "sin-respuesta": "✘ Google no respondió. Revise que la implementación sea «Aplicación web» con acceso «Cualquier usuario» y que haya autorizado el script."
       };
-      if (r.ok) {
-        const cuenta = r.registros ? " Registros guardados: " + Object.entries(r.registros).map(([k, v]) => `${k} ${v}`).join(" · ") + "." : "";
-        out.innerHTML = `✔ Conectado a la hoja <b>${esc(r.hojaDeCalculo || "")}</b>.${esc(cuenta)} ` + (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir esa hoja</a>` : "")
-          + (r.ultimoError ? `<br>Último error reportado por Google: <code>${esc(r.ultimoError)}</code>` : "")
-          + (Nube.estado().pendientes ? ` <button class="link-btn" id="descartarNube">Descartar pendientes</button>` : "");
-        const des = $("#descartarNube");
-        if (des) des.addEventListener("click", () => { if (confirm("¿Descartar los registros pendientes? No se enviarán a la nube.")) { Nube.descartar(); toast("Pendientes descartados"); } });
-        Nube.enviar();
-      }
+      if (r.ok) { out.textContent = "✔ La conexión con la base de datos del Centro de Interés funciona."; Nube.enviar(); }
       else out.textContent = msg[r.motivo] || "✘ No fue posible conectar.";
     });
     $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
@@ -482,7 +474,7 @@
     const e = Nube.estado();
     if (!e.activa) { el.className = "nube"; el.innerHTML = "<i></i>Nube no configurada: los datos quedan en este navegador" + (e.pendientes ? ` (${e.pendientes} pendientes)` : ""); return; }
     if (e.pendientes) {
-      const motivo = !e.enLinea ? " · sin conexión" : e.error === "no-confirmado" ? " · Google no confirmó el guardado (revise la implementación y la clave)" : e.error ? " · reintentando" : "…";
+      const motivo = !e.enLinea ? " · sin conexión" : e.error === "sin-respuesta" ? " · Google no responde, se reintentará" : e.error === "sin-conexion" ? " · reintentando" : e.error ? " · Google respondió: " + esc(e.error) : "…";
       el.className = "nube pend"; el.innerHTML = `<i></i>${e.pendientes} registro(s) pendiente(s) de envío (${esc(e.tipos.join(", "))})${motivo}`; return;
     }
     el.className = "nube ok";
@@ -569,8 +561,94 @@
   });
   renderGaleria();
 
+  /* ---------- Panel del administrador ---------- */
+  const AK = "ci-ensma-admin";
+  const claveAdmin = { get() { try { return sessionStorage.getItem(AK) || ""; } catch (e) { return ""; } },
+    set(v) { try { v ? sessionStorage.setItem(AK, v) : sessionStorage.removeItem(AK); } catch (e) {} } };
+
+  function adminLogin(msg) {
+    $("#adminBody").innerHTML = `
+      <div class="diag-box" style="max-width:520px">
+        <h3>Ingreso de administrador</h3>
+        <p class="sub">Solo los docentes administradores pueden ver los resultados de la base de datos. La clave se define en Apps Script (CLAVE_ADMIN).</p>
+        <form id="adminForm" class="resp" style="margin-top:14px">
+          <div class="inp"><input type="password" name="clave" placeholder="Clave de administrador" autocomplete="current-password" required></div>
+          <button class="btn btn-rosa btn-sm">Ingresar</button>
+        </form>
+        ${msg ? `<div class="fb mal on" style="margin-top:12px">${esc(msg)}</div>` : ""}
+      </div>`;
+    $("#adminForm").addEventListener("submit", e => {
+      e.preventDefault(); const k = e.target.clave.value.trim();
+      if (k) cargarAdmin(k);
+    });
+  }
+
+  async function cargarAdmin(k) {
+    $("#adminBody").innerHTML = `<div class="diag-box" style="max-width:520px"><p>Consultando la base de datos…</p></div>`;
+    const r = await Nube.admin(k);
+    if (!r.ok) { claveAdmin.set(""); adminLogin(r.error === "No autorizado" ? "Clave incorrecta." : r.error); return; }
+    claveAdmin.set(k);
+    renderAdmin(r);
+  }
+
+  function barras(obj, total) {
+    const ks = Object.keys(obj); if (!ks.length) return `<p class="sub">Sin datos todavía.</p>`;
+    return `<div class="comp-res">${ks.sort().map(k => `<div class="comp-row"><span>${esc(k)}</span><div class="track"><i style="width:${Math.max(100 * obj[k] / (total || 1), 2)}%"></i></div><b>${obj[k]}</b></div>`).join("")}</div>`;
+  }
+
+  function renderAdmin(r) {
+    const t = r.totales;
+    const grados = Object.fromEntries(Object.entries(r.porGrado).map(([g, n]) => [g + "°", n]));
+    const niveles = Object.entries(r.niveles).map(([nom, n]) => `
+      <div class="card">
+        <h3 style="margin-bottom:4px">${esc(nom)}</h3>
+        <p class="sub" style="margin-bottom:10px">${n.n} diagnóstico(s) · nota promedio <b>${n.promedioNota.toFixed(1)}</b> ${badge(n.promedioNota)}</p>
+        <div class="espacios" style="margin-bottom:12px">${["Bajo", "Básico", "Alto", "Superior"].map(d => `<span>${d}: ${n.desempeno[d] || 0}</span>`).join("")}</div>
+        <div class="comp-res">${Object.entries(COMPETENCIAS).map(([k, c]) => {
+          const v = n.comp[k] || 0; return `<div class="comp-row"><span>${c.nombre}</span><div class="track"><i style="width:${Math.max(v, 2)}%"></i></div><b>${v} %</b></div>`; }).join("")}</div>
+      </div>`).join("") || `<p class="sub">Aún no hay diagnósticos.</p>`;
+    const retos = Object.entries(r.retos).map(([id, x]) => `<tr><td>${esc(x.nivel)}</td><td>${esc(x.titulo)}</td><td>${x.intentos}</td><td>${x.intentos ? Math.round(100 * x.correctos / x.intentos) : 0} %</td><td>${x.resolvieron}</td></tr>`).join("");
+    const ult = r.ultimosDiagnosticos.map(d => `<tr><td>${new Date(d.fecha).toLocaleString("es-CO")}</td><td>${esc(d.nombre)}</td><td>${esc(d.grado)}° ${esc(d.curso)}</td><td>${esc(d.nivel)}</td><td>${Number(d.nota).toFixed(1)}</td><td>${badge(Number(d.nota))}</td></tr>`).join("");
+    $("#adminBody").innerHTML = `
+      <div class="perfil-card">
+        <div class="avatar">A</div>
+        <div><h3>Base de datos: ${esc(r.hojaDeCalculo)}</h3><p>Datos actualizados al ${new Date().toLocaleString("es-CO")}</p></div>
+        <div class="acciones">
+          <a class="btn btn-celeste btn-sm" href="${esc(r.url)}" target="_blank" rel="noopener">Abrir Google Sheets</a>
+          <button class="btn btn-line btn-sm" id="admRef">Actualizar</button>
+          <button class="btn btn-line btn-sm" id="admOut">Cerrar sesión</button>
+        </div>
+      </div>
+      <div class="kpis" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
+        <div class="kpi k-rosa"><span>Estudiantes caracterizados</span><b>${t.estudiantes}</b></div>
+        <div class="kpi"><span>Diagnósticos</span><b>${t.diagnosticos}</b></div>
+        <div class="kpi k-cel"><span>Intentos de retos</span><b>${t.retos}</b></div>
+        <div class="kpi"><span>Escenarios guardados</span><b>${t.simulaciones}</b></div>
+        <div class="kpi"><span>Registros de caracterización</span><b>${t.caracterizacion}</b></div>
+      </div>
+      ${r.ultimoError ? `<p class="aviso" style="margin:0 0 24px">Último error reportado: <code>${esc(r.ultimoError)}</code></p>` : ""}
+      <div class="sec-head" style="margin-top:12px"><p class="eyebrow">Caracterización</p><h2>Estudiantes por grado</h2></div>
+      <div class="two">
+        <div class="card">${barras(grados, t.estudiantes)}</div>
+        <div class="card"><h3>Dispositivo en casa</h3>${barras(r.dispositivo, t.estudiantes)}<h3 style="margin-top:16px">Internet en casa</h3>${barras(r.internet, t.estudiantes)}</div>
+      </div>
+      <div class="sec-head"><p class="eyebrow">Línea base</p><h2>Diagnóstico por nivel</h2></div>
+      <div class="prog-grid">${niveles}</div>
+      <div class="sec-head"><p class="eyebrow">Retos</p><h2>Desempeño en los retos</h2></div>
+      ${retos ? `<div class="tabla-wrap"><table class="tabla"><thead><tr><th>Nivel</th><th>Reto</th><th>Intentos</th><th>Aciertos</th><th>Estudiantes que lo resolvieron</th></tr></thead><tbody>${retos}</tbody></table></div>` : `<p class="sub">Aún no hay intentos.</p>`}
+      <div class="sec-head"><p class="eyebrow">Simulaciones</p><h2>Escenarios guardados</h2></div>
+      <div class="card">${barras(r.simulaciones, t.simulaciones)}</div>
+      <div class="sec-head"><p class="eyebrow">Actividad reciente</p><h2>Últimos diagnósticos</h2></div>
+      ${ult ? `<div class="tabla-wrap"><table class="tabla"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Grado</th><th>Nivel</th><th>Nota</th><th>Desempeño</th></tr></thead><tbody>${ult}</tbody></table></div>` : `<p class="sub">Aún no hay diagnósticos.</p>`}
+      <p class="aviso">La información completa, con respuestas, conclusiones y parámetros de cada simulación, está en Google Sheets. Esa hoja solo la pueden abrir las cuentas con las que se haya compartido en Drive.</p>`;
+    $("#admRef").addEventListener("click", () => cargarAdmin(claveAdmin.get()));
+    $("#admOut").addEventListener("click", () => { claveAdmin.set(""); adminLogin(); toast("Sesión de administrador cerrada"); });
+  }
+
+  function abrirAdmin() { const k = claveAdmin.get(); k ? cargarAdmin(k) : adminLogin(); }
+
   /* ---------- Navegación ---------- */
-  const VISTAS = ["inicio", "proyecto", "cronograma", "progreso", ...NIVELES.map(n => "nivel-" + n.id)];
+  const VISTAS = ["inicio", "proyecto", "cronograma", "progreso", "admin", ...NIVELES.map(n => "nivel-" + n.id)];
   function navegar() {
     const h = (location.hash || "#inicio").slice(1);
     const subProyecto = { proyecto: "info", noticias: "noticias", galeria: "galeria" }[h];
@@ -586,6 +664,7 @@
     }
     if (vista === "progreso") renderProgreso();
     if (vista === "cronograma") renderCronograma();
+    if (vista === "admin") abrirAdmin();
   }
   window.addEventListener("hashchange", navegar);
   $(".menu-btn").addEventListener("click", e => {

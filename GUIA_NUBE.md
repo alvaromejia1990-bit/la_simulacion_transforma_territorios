@@ -42,9 +42,37 @@ La configuración se hace una sola vez y toma unos 10 minutos.
 ## 5. Comprobar
 1. En el editor de Apps Script ejecuta **probarRegistro**. En la pestaña **Caracterización** de la hoja debe aparecer una fila de prueba.
 2. Abre el sitio publicado y presiona **Ctrl + F5** para recargarlo sin caché.
-3. Entra a **Mi progreso → Probar conexión con la nube**. Debe aparecer «✔ Conectado a la hoja…».
+3. Entra a **Mi progreso → Probar conexión con la nube**. Debe aparecer «✔ La conexión con la base de datos del Centro de Interés funciona».
 
 > Si creaste el script en script.google.com y no desde la hoja, el código crea solo la hoja «Base de datos RACR – Simulación que transforma territorio» en tu Drive. Busca ese nombre en Drive.
+
+## 6. Rol administrador (acceso a la base de datos)
+
+**Quién puede hacer qué**
+
+| Rol | Qué puede hacer |
+|---|---|
+| **Estudiante (cualquier usuario)** | Enviar su caracterización, diagnósticos, retos y escenarios. **No puede ver** la hoja ni los datos de otros. |
+| **Administrador** | Ver el **Panel del administrador** del sitio (pie de página → *Acceso administrador*) y abrir la hoja en Google Sheets. |
+
+**Configurar la clave de administrador**
+1. En Apps Script, cambie esta línea por una clave segura:
+   ```js
+   const CLAVE_ADMIN = 'CAMBIE-ESTA-CLAVE';
+   ```
+   La clave debe tener al menos 10 caracteres y combinar letras, números y símbolos.
+2. Guarde los cambios y publique una nueva versión: **Implementar → Gestionar implementaciones → ✏ → Nueva versión → Implementar**.
+3. **No escriba esta clave en GitHub** ni en `js/config.js`. Solo debe estar en Apps Script.
+
+**Proteger la hoja en Google Drive**
+1. Abra la hoja → **Compartir**.
+2. En *Acceso general* elija **Restringido**. Nunca use «Cualquier persona con el enlace».
+3. Agregue solo los correos de los docentes administradores: como **Lector** si solo consultan, o como **Editor** si deben corregir datos.
+4. No comparta el proyecto de Apps Script.
+
+> En la implementación, «Quién tiene acceso: **Cualquier usuario**» solo permite *enviar* registros al script. El script nunca devuelve el contenido de la hoja a los estudiantes. La lectura queda protegida por los permisos de Drive y por la clave de administrador.
+
+**Repositorio en GitHub:** la carpeta `apps-script/` es una copia de referencia y tiene la clave de administrador en blanco (`CAMBIE-ESTA-CLAVE`). Si la sube, nunca la reemplace por la clave real.
 
 ## Notas
 - **Clave:** el sitio envía la clave `ENSMA-RACR-2026` y el script rechaza cualquier envío con otra clave. Si la cambias, hazlo en `apps-script/Code.gs` (`CLAVE`) y en `js/config.js` (`clave`), y vuelve a implementar.
