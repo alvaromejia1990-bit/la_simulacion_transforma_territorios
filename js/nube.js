@@ -10,12 +10,13 @@ const Nube = (() => {
   const cola = () => leer(QK) || [];
   const activa = () => typeof CONFIG_NUBE !== "undefined" && /^https:\/\/script\.google(usercontent)?\.com\//.test(CONFIG_NUBE.url || "");
   const oyentes = [];
-  let enviando = false, memoria = [], ultimoError = null;   // respaldo si el navegador bloquea el almacenamiento
+  let enviando = false, memoria = [], ultimoError = null, tiposFallidos = [];   // respaldo si el navegador bloquea el almacenamiento
 
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 
   function estado() {
-    return { activa: activa(), pendientes: cola().length + memoria.length, ultimo: leer(LK), enLinea: navigator.onLine, error: ultimoError };
+    return { activa: activa(), pendientes: cola().length + memoria.length, ultimo: leer(LK), enLinea: navigator.onLine, error: ultimoError,
+      tipos: [...new Set(cola().concat(memoria).map(x => x.tipo))] };
   }
   function avisar() { const e = estado(); oyentes.forEach(f => { try { f(e); } catch (x) {} }); }
 
@@ -43,26 +44,35 @@ const Nube = (() => {
     });
   }
 
+  const esperar = ms => new Promise(r => setTimeout(r, ms));
+
   async function enviar() {
     if (enviando || !activa() || !navigator.onLine) return;
     enviando = true; ultimoError = null;
     try {
-      while (true) {
-        const item = cola()[0] || memoria[0];
-        if (!item) break;
+      const lote = cola().concat(memoria);
+      const fallidos = [];
+      for (const item of lote) {
         await fetch(CONFIG_NUBE.url, {
           method: "POST", mode: "no-cors",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(Object.assign({ clave: CONFIG_NUBE.clave }, item))
         });
-        // Solo se borra de la cola cuando Google confirma que la fila existe
-        const v = await jsonp({ verificar: item.idRegistro });
-        if (!v || !v.existe) { ultimoError = v ? "no-confirmado" : "sin-respuesta"; break; }
-        escribir(QK, cola().filter(x => x.idRegistro !== item.idRegistro));
-        memoria = memoria.filter(x => x.idRegistro !== item.idRegistro);
-        escribir(LK, new Date().toISOString());
+        // Solo se borra de la cola cuando Google confirma que la fila existe (2 intentos de verificación)
+        let v = await jsonp({ verificar: item.idRegistro });
+        if (!v || !v.existe) { await esperar(3000); v = await jsonp({ verificar: item.idRegistro }); }
+        if (v && v.existe) {
+          escribir(QK, cola().filter(x => x.idRegistro !== item.idRegistro));
+          memoria = memoria.filter(x => x.idRegistro !== item.idRegistro);
+          escribir(LK, new Date().toISOString());
+        } else {
+          ultimoError = v ? "no-confirmado" : "sin-respuesta";
+          fallidos.push(item.tipo);
+          if (!v) break;            // Google no responde: se reintenta más tarde
+        }
         avisar();
       }
+      tiposFallidos = fallidos;
     } catch (e) { ultimoError = "sin-conexion"; }
     enviando = false; avisar();
   }
@@ -78,5 +88,8 @@ const Nube = (() => {
     return d ? Object.assign({ ok: !!d.ok }, d) : { ok: false, motivo: "sin-respuesta" };
   }
 
-  return { registrar, enviar, estado, uid, probar, alCambiar: f => oyentes.push(f) };
+  // Descarta los registros pendientes (solo si el docente lo decide)
+  function descartar() { escribir(QK, []); memoria = []; avisar(); }
+
+  return { registrar, enviar, estado, uid, probar, descartar, alCambiar: f => oyentes.push(f) };
 })();

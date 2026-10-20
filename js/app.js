@@ -428,7 +428,11 @@
       };
       if (r.ok) {
         const cuenta = r.registros ? " Registros guardados: " + Object.entries(r.registros).map(([k, v]) => `${k} ${v}`).join(" · ") + "." : "";
-        out.innerHTML = `✔ Conectado a la hoja <b>${esc(r.hojaDeCalculo || "")}</b>.${esc(cuenta)} ` + (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir esa hoja</a>` : "");
+        out.innerHTML = `✔ Conectado a la hoja <b>${esc(r.hojaDeCalculo || "")}</b>.${esc(cuenta)} ` + (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Abrir esa hoja</a>` : "")
+          + (r.ultimoError ? `<br>Último error reportado por Google: <code>${esc(r.ultimoError)}</code>` : "")
+          + (Nube.estado().pendientes ? ` <button class="link-btn" id="descartarNube">Descartar pendientes</button>` : "");
+        const des = $("#descartarNube");
+        if (des) des.addEventListener("click", () => { if (confirm("¿Descartar los registros pendientes? No se enviarán a la nube.")) { Nube.descartar(); toast("Pendientes descartados"); } });
         Nube.enviar();
       }
       else out.textContent = msg[r.motivo] || "✘ No fue posible conectar.";
@@ -479,7 +483,7 @@
     if (!e.activa) { el.className = "nube"; el.innerHTML = "<i></i>Nube no configurada: los datos quedan en este navegador" + (e.pendientes ? ` (${e.pendientes} pendientes)` : ""); return; }
     if (e.pendientes) {
       const motivo = !e.enLinea ? " · sin conexión" : e.error === "no-confirmado" ? " · Google no confirmó el guardado (revise la implementación y la clave)" : e.error ? " · reintentando" : "…";
-      el.className = "nube pend"; el.innerHTML = `<i></i>${e.pendientes} registro(s) pendiente(s) de envío${motivo}`; return;
+      el.className = "nube pend"; el.innerHTML = `<i></i>${e.pendientes} registro(s) pendiente(s) de envío (${esc(e.tipos.join(", "))})${motivo}`; return;
     }
     el.className = "nube ok";
     el.innerHTML = "<i></i>Todo guardado en la nube" + (e.ultimo ? " · último envío " + new Date(e.ultimo).toLocaleString("es-CO") : "");
