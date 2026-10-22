@@ -540,6 +540,78 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
 .comp-row b { text-align: right; color: var(--azul); }
 #adminBody .comp-row { grid-template-columns: minmax(110px, 1.1fr) 1fr 52px; gap: 10px; font-size: .84rem; }
 
+/* ---------- Repositorios (Informes y Revista) ---------- */
+.repo { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 22px; }
+.doc-card { display: flex; flex-direction: column; border: 1px solid var(--borde); border-radius: var(--r-m); background: #fff; overflow: hidden; box-shadow: var(--sombra); transition: transform .2s, box-shadow .2s; }
+.doc-card:hover { transform: translateY(-3px); box-shadow: var(--sombra-2); }
+.doc-cover { position: relative; aspect-ratio: 3 / 4; background: var(--fondo-2); overflow: hidden; cursor: pointer; border: 0; padding: 0; width: 100%; display: block; }
+.doc-cover img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.doc-num { position: absolute; top: 12px; left: 12px; font: 800 1.1rem/1 var(--f-tit); color: #fff; background: var(--rosa); padding: 8px 12px; border-radius: 10px; box-shadow: var(--sombra); }
+.doc-cover .ver { position: absolute; inset: auto 0 0 0; padding: 30px 14px 12px; color: #fff; font-weight: 600; font-size: .86rem; background: linear-gradient(transparent, rgba(27,46,107,.85)); opacity: 0; transition: opacity .2s; text-align: left; }
+.doc-card:hover .ver { opacity: 1; }
+.doc-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.doc-body h3 { margin: 0; font-size: 1.15rem; }
+.doc-body p { margin: 0; font-size: .86rem; color: var(--gris); }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.doc-meta span { font-size: .72rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--celeste-50); color: var(--celeste-700); }
+.doc-acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+/* Portada generada para la revista */
+.rev-cover { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 22px 20px; color: #fff; text-align: left;
+  background: radial-gradient(160px 160px at 85% 15%, rgba(255,255,255,.18), transparent 70%), linear-gradient(160deg, var(--rosa) 0%, #8A5BB8 55%, var(--celeste) 100%); }
+.rev-cover small { font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; opacity: .9; }
+.rev-cover b { font: 800 1.5rem/1.1 var(--f-tit); }
+.rev-cover i { font-style: normal; font-size: .8rem; opacity: .9; }
+.rev-cover .vol { font: 800 3.2rem/1 var(--f-tit); opacity: .95; }
+.doc-card.proximo .doc-cover { cursor: default; }
+.estado-chip { font-size: .72rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #FFF5DD; color: #9A6A00; align-self: flex-start; }
+.repo-revista { grid-template-columns: repeat(auto-fill, minmax(220px, 260px)); }
+
+/* ---------- Redes sociales ---------- */
+.redes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.red { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 30px 20px; border-radius: var(--r-l); border: 1px solid var(--borde); background: #fff; text-decoration: none; color: inherit; box-shadow: var(--sombra); }
+.red-ico { width: 78px; height: 78px; border-radius: 22px; display: grid; place-items: center; color: #fff; }
+.red-ico svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.red-ico.ig { background: linear-gradient(135deg, #F9A23B, #E0407D 50%, #8A5BB8); }
+.red-ico.fb { background: #1877F2; }
+.red-ico.tt { background: #111827; box-shadow: 3px 3px 0 var(--celeste), -3px -3px 0 var(--rosa); }
+.red h3 { margin: 0; }
+.red .prox { font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--rosa-700); background: var(--rosa-50); padding: 5px 12px; border-radius: 999px; }
+
+/* ---------- Visor de documentos ---------- */
+.visor { width: min(1100px, 96vw); height: 92vh; max-height: 92vh; padding: 0; overflow: hidden; }
+.visor[open] { display: flex; flex-direction: column; }
+.visor-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--borde); flex-wrap: wrap; }
+.visor-bar b { color: var(--azul); font-family: var(--f-tit); font-size: 1.1rem; }
+.visor-acc { display: flex; gap: 8px; flex-wrap: wrap; }
+.visor iframe { flex: 1; width: 100%; border: 0; background: var(--fondo-2); }
+
+/* ---------- Caracterización ampliada ---------- */
+#perfilDlg form { max-height: 88vh; overflow-y: auto; }
+.form-sep { margin: 6px 0 0; padding-top: 12px; border-top: 1px solid var(--borde); font: 700 .95rem var(--f-tit); color: var(--rosa-700); }
+
+/* ---------- Dashboard del administrador ---------- */
+.dash-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 22px; }
+.dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.dash-card { border: 1px solid var(--borde); border-radius: var(--r-l); background: #fff; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--sombra); min-width: 0; }
+.dash-card.full { grid-column: 1 / -1; }
+.dash-card h3 { margin: 0; font-size: 1.2rem; }
+.dash-card .sub { margin: 0; font-size: .86rem; }
+.analisis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.analisis div { border-radius: var(--r-s); padding: 12px 14px; font-size: .84rem; line-height: 1.5; }
+.analisis .cuanti { background: var(--celeste-50); }
+.analisis .cuali { background: var(--rosa-50); }
+.analisis .t { display: block; font-weight: 700; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+.analisis .cuanti .t, .analisis .cuanti b { color: var(--celeste-700); }
+.analisis .cuali .t, .analisis .cuali b { color: var(--rosa-700); }
+.dash-aviso { border: 1.5px dashed var(--borde); border-radius: var(--r-m); padding: 16px 18px; color: var(--gris); font-size: .88rem; background: var(--fondo-2); }
+.top-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.top-list li { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--r-s); background: var(--fondo-2); font-size: .88rem; }
+.top-list .pos { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 800 .85rem var(--f-tit); color: #fff; background: var(--celeste); }
+.top-list li:first-child .pos { background: var(--rosa); }
+.falta { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 999px; background: var(--mal-50); color: var(--mal); }
+.filtro-dash { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filtro-dash select, .filtro-dash input { padding: 8px 10px; border: 1.5px solid var(--borde); border-radius: var(--r-s); font: 400 .88rem var(--f-txt); }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 1020px) {
   .menu-btn { display: block; }
@@ -555,6 +627,8 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
   .pilares, .ruta { grid-template-columns: 1fr 1fr; }
   .nivel-cards, .retos, .prog-grid { grid-template-columns: 1fr; }
   .noticias { grid-template-columns: 1fr; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .redes { grid-template-columns: 1fr; }
   #adminBody .kpis { grid-template-columns: repeat(3, 1fr) !important; }
   .galeria-full { grid-template-columns: 1fr 1fr; }
   .metas, .equipo { grid-template-columns: 1fr 1fr; }
@@ -582,8 +656,13 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
   .comp-row .track { grid-column: 1 / -1; grid-row: 2; }
   .kpis { grid-template-columns: 1fr !important; }
   .noticia, .noticia.destacada { grid-template-columns: 1fr; }
+  .tabs-light { overflow-x: auto; scrollbar-width: none; }
+  .tabs-light::-webkit-scrollbar { display: none; }
+  .tabs-light .tab { flex: none; }
   .noticia img, .noticia.destacada img { min-height: 0; aspect-ratio: 16 / 9; }
   .row3 { grid-template-columns: 1fr 1fr; }
+  .analisis { grid-template-columns: 1fr; }
+  .repo-revista { grid-template-columns: 1fr 1fr; }
   .lb-prev { left: 6px; } .lb-next { right: 6px; } .lb-close { right: 6px; top: 6px; }
   .chart text { font-size: 17px; }
   .chart .lbl-v { font-size: 18px; }

@@ -377,3 +377,38 @@ const GALERIA = [
   { src: "img/comunidad-ensma.jpg", titulo: "Comunidad educativa ENSMA", categoria: "Comunidad", fecha: "2026" },
   { src: "img/logo-pmc.jpg", titulo: "Identidad del proyecto RACR", categoria: "Proyecto", fecha: "Octubre 2026" }
 ];
+
+/* ==========================================================
+   REPOSITORIO DE INFORMES (El proyecto → Informes)
+   Para agregar un informe: suba el PDF (para ver en línea) y, si
+   desea, el DOCX (para descargar) a docs/informes/ y regístrelo aquí.
+   ========================================================== */
+const INFORMES = [
+  { numero: "01", titulo: "Informe ejecutivo · Centro de Interés", subtitulo: "Avances de la fase de diagnóstico y diseño",
+    fecha: "2026-10-21", paginas: 15, etiquetas: ["Informe ejecutivo", "Fase 2026"],
+    portada: "docs/informes/01-portada.jpg",
+    pdf: "docs/informes/01-informe-ejecutivo-centro-de-interes.pdf",
+    docx: "docs/informes/01-informe-ejecutivo-centro-de-interes.docx",
+    resumen: "Proceso general, diseño del sitio web, caracterización, instrumentos diagnósticos, socialización del cronograma, aplicación del diagnóstico, actividades pendientes y compromisos." }
+];
+
+/* ==========================================================
+   REVISTA ACADÉMICA (Inicio → Revista académica)
+   Para publicar un volumen: suba el PDF a docs/revista/ (y su portada
+   en JPG, opcional) y complete "pdf". Sin "pdf" se muestra «En preparación».
+   ========================================================== */
+const REVISTA = [
+  { volumen: "Vol. 1", numero: "N.° 1", titulo: "Simular para transformar el territorio",
+    fecha: "Noviembre 2026", pdf: "", portada: "",
+    descripcion: "Primer volumen: experiencias de la fase diagnóstica, problemáticas del territorio identificadas por los estudiantes y primeras simulaciones." }
+];
+
+/* ==========================================================
+   REDES SOCIALES (El proyecto → Redes sociales)
+   Cuando exista la cuenta, escriba su enlace en "url".
+   ========================================================== */
+const REDES = [
+  { red: "Instagram", url: "", usuario: "" },
+  { red: "Facebook", url: "", usuario: "" },
+  { red: "TikTok", url: "", usuario: "" }
+];

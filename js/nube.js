@@ -120,5 +120,13 @@ const Nube = (() => {
     return d || { ok: false, error: "Google no respondió" };
   }
 
-  return { registrar, enviar, estado, uid, probar, descartar, admin, confirmado, alCambiar: f => oyentes.push(f) };
+  // Registro de visitas (no bloquea nada; si el script no lo reconoce, simplemente responde «ok»)
+  function visita(seccion) {
+    if (!activa() || !navigator.onLine) return;
+    let id = leer("ci-ensma-visitante");
+    if (!id) { id = uid(); escribir("ci-ensma-visitante", id); }
+    jsonp({ visita: seccion, visitante: id });
+  }
+
+  return { registrar, enviar, estado, uid, probar, descartar, admin, confirmado, visita, alCambiar: f => oyentes.push(f) };
 })();

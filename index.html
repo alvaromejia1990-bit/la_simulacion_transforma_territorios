@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Lexend:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.7">
+<link rel="stylesheet" href="css/styles.css?v=1.8">
 </head>
 <body>
 
@@ -93,6 +93,13 @@
     </div>
     <div class="nivel-cards" id="nivelCards"></div>
 
+    <div class="sec-head" id="revista">
+      <p class="eyebrow">Publicaciones</p>
+      <h2>Revista académica</h2>
+      <p class="sub">Volúmenes elaborados por estudiantes y docentes del Centro de Interés. Haz clic en un volumen para verlo o descargarlo.</p>
+    </div>
+    <div class="repo repo-revista" id="repoRevista"></div>
+
     <div class="sec-head sec-head-row">
       <div><p class="eyebrow">Nuestra comunidad</p>
       <h2>Aprender haciendo, en equipo</h2></div>
@@ -118,6 +125,8 @@
         <button class="tab" role="tab" data-tab="info" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>El proyecto</button>
         <button class="tab" role="tab" data-tab="noticias" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2V5Z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5"/></svg>Noticias</button>
         <button class="tab" role="tab" data-tab="galeria" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-8 8"/></svg>Galería</button>
+        <button class="tab" role="tab" data-tab="informes" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Informes</button>
+        <button class="tab" role="tab" data-tab="redes" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6"/></svg>Redes sociales</button>
       </div>
     </div>
   </div>
@@ -174,7 +183,8 @@
 
     <div class="sec-head"><p class="eyebrow">Equipo dinamizador</p><h2>Docentes del núcleo</h2></div>
     <div class="equipo">
-      <div class="persona"><b>Marco T. Hernández</b><span>Rector</span></div>
+      <div class="persona"><b>Oscar Roa Riaño</b><span>Rector</span></div>
+      <div class="persona"><b>Consuelo Rodríguez</b><span>Coordinadora académica</span></div>
       <div class="persona"><b>Álvaro Fernando Mejía Figueredo</b><span>Docente · 10.° y 9.°</span></div>
       <div class="persona"><b>Miguel Medina</b><span>Docente · 11.° y 10.°</span></div>
       <div class="persona"><b>Javier Leal</b><span>Docente · 8.°</span></div>
@@ -199,6 +209,18 @@
       <div class="filtros" id="filtrosGaleria" role="group" aria-label="Filtrar galería"></div>
     </div>
     <div class="galeria-full" id="galeriaFull"></div>
+  </div>
+
+  <!-- Informes -->
+  <div class="panel" data-panel="informes">
+    <div class="panel-intro"><div><h2>Repositorio de informes</h2><p>Documentos del Centro de Interés para consultar en línea o descargar.</p></div></div>
+    <div class="repo" id="repoInformes"></div>
+  </div>
+
+  <!-- Redes sociales -->
+  <div class="panel" data-panel="redes">
+    <div class="panel-intro"><div><h2>Redes sociales</h2><p>Muy pronto podrás seguir el Centro de Interés en nuestras redes.</p></div></div>
+    <div class="redes" id="redes"></div>
   </div>
   </div>
 </section>
@@ -286,11 +308,56 @@
         <select name="internet"><option value="">—</option><option>Sí</option><option>No</option></select>
       </label>
     </div>
+    <p class="form-sep">Tu territorio y la tecnología</p>
+    <label>¿En qué zona vives?
+      <select name="zona" required>
+        <option value="">— Selecciona —</option>
+        <option>Urbana · centro de Girardot</option>
+        <option>Urbana · barrio periférico de Girardot</option>
+        <option>Rural · vereda de Girardot</option>
+        <option>Otro municipio cercano</option>
+      </select>
+    </label>
+    <label>¿Desde dónde te conectas a internet con más frecuencia?
+      <select name="conectividad" required>
+        <option value="">— Selecciona —</option>
+        <option>Wifi en mi casa</option>
+        <option>Datos del celular (recargas o plan)</option>
+        <option>Wifi del colegio</option>
+        <option>Zona wifi pública, biblioteca o café internet</option>
+        <option>Casa de un familiar o vecino</option>
+        <option>Casi nunca me conecto</option>
+      </select>
+    </label>
+    <label>¿Qué problemática de tu entorno te gustaría estudiar con tecnología?
+      <select name="problematica" required>
+        <option value="">— Selecciona —</option>
+        <option>Agua y río Magdalena</option>
+        <option>Residuos y reciclaje</option>
+        <option>Movilidad y transporte</option>
+        <option>Calor, clima y energía</option>
+        <option>Turismo y comercio local</option>
+        <option>Convivencia y seguridad</option>
+        <option>Salud y bienestar</option>
+      </select>
+    </label>
     <div class="dlg-btns">
       <button type="button" class="btn btn-line" value="cancel" id="perfilCancel">Cancelar</button>
       <button type="submit" class="btn btn-rosa" value="ok">Guardar</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="visor" class="visor" aria-label="Visor de documentos">
+  <div class="visor-bar">
+    <b id="visorTitulo"></b>
+    <div class="visor-acc">
+      <a class="btn btn-line btn-sm" id="visorAbrir" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
+      <a class="btn btn-celeste btn-sm" id="visorDescargar" download>Descargar</a>
+      <button class="btn btn-rosa btn-sm" id="visorCerrar">Cerrar</button>
+    </div>
+  </div>
+  <iframe id="visorFrame" title="Documento"></iframe>
 </dialog>
 
 <dialog id="lightbox" class="lightbox" aria-label="Foto ampliada">
@@ -302,10 +369,10 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js?v=1.7"></script>
-<script src="js/nube.js?v=1.7"></script>
-<script src="js/data.js?v=1.7"></script>
-<script src="js/simulaciones.js?v=1.7"></script>
-<script src="js/app.js?v=1.7"></script>
+<script src="js/config.js?v=1.8"></script>
+<script src="js/nube.js?v=1.8"></script>
+<script src="js/data.js?v=1.8"></script>
+<script src="js/simulaciones.js?v=1.8"></script>
+<script src="js/app.js?v=1.8"></script>
 </body>
 </html>

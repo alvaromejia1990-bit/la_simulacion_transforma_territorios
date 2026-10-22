@@ -31,7 +31,10 @@
   const nombreNivel = n => `${n.nombre} (${n.grados})`;
   // Identificadores fijos: el mismo registro siempre tiene el mismo id (la hoja nunca lo duplica)
   const hash = t => [...String(t)].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >>> 0, 5381).toString(36);
-  const idCar = p => "car-" + p.id + "-" + hash([p.nombre, p.grado, p.curso, p.edad, p.dispositivo, p.internet].join("|"));
+  const camposCar = p => [p.nombre, p.grado, p.curso, p.edad, p.dispositivo, p.internet].concat(p.zona || p.conectividad || p.problematica ? [p.zona, p.conectividad, p.problematica] : []);
+  const idCar = p => "car-" + p.id + "-" + hash(camposCar(p).join("|"));
+  const datosCar = p => ({ idRegistro: idCar(p), edad: p.edad, dispositivo: p.dispositivo, internet: p.internet,
+    zona: p.zona || "", conectividad: p.conectividad || "", problematica: p.problematica || "" });
   const idDia = (p, nv, fecha) => "dia-" + p.id + "-" + nv.id + "-" + fecha;
   const idRetoOk = (p, rid) => "ret-" + p.id + "-" + rid;
 
@@ -47,19 +50,21 @@
     if (S.perfil) {
       f.nombre.value = S.perfil.nombre; f.grado.value = S.perfil.grado; f.curso.value = S.perfil.curso || "";
       f.edad.value = S.perfil.edad || ""; f.dispositivo.value = S.perfil.dispositivo || ""; f.internet.value = S.perfil.internet || "";
+      f.zona.value = S.perfil.zona || ""; f.conectividad.value = S.perfil.conectividad || ""; f.problematica.value = S.perfil.problematica || "";
     }
     $("#perfilDlg").showModal();
   }
   $("#perfilForm").addEventListener("submit", e => {
     const f = e.target;
-    if (!f.nombre.value.trim() || !f.grado.value) { e.preventDefault(); return; }
+    if (!f.nombre.value.trim() || !f.grado.value || !f.zona.value || !f.conectividad.value || !f.problematica.value) { e.preventDefault(); return; }
     S.perfil = {
       id: (S.perfil && S.perfil.id) || Nube.uid(),
       nombre: f.nombre.value.trim(), grado: +f.grado.value, curso: f.curso.value.trim(),
-      edad: f.edad.value, dispositivo: f.dispositivo.value, internet: f.internet.value
+      edad: f.edad.value, dispositivo: f.dispositivo.value, internet: f.internet.value,
+      zona: f.zona.value, conectividad: f.conectividad.value, problematica: f.problematica.value
     };
     guardar();
-    Nube.registrar("caracterizacion", Object.assign(estudiante(), { idRegistro: idCar(S.perfil), edad: S.perfil.edad, dispositivo: S.perfil.dispositivo, internet: S.perfil.internet }));
+    Nube.registrar("caracterizacion", Object.assign(estudiante(), datosCar(S.perfil)));
     toast("Caracterización guardada");
     renderProgreso();
     if (perfilCallback) { const cb = perfilCallback; perfilCallback = null; setTimeout(cb, 50); }
@@ -423,7 +428,7 @@
         </div></div>`;
     }).join("");
     host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.7</small><br>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive, que solo pueden consultar los administradores. El envío es automático: si no hay internet, se guardan aquí y se envían solos cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+      <p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.8</small><br>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive, que solo pueden consultar los administradores. El envío es automático: si no hay internet, se guardan aquí y se envían solos cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
     pintarNube();
     $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
     const csv = $('[data-act="csv"]', host); if (csv) csv.addEventListener("click", descargarCSV);
@@ -444,7 +449,7 @@
     if (!p.id) { p.id = Nube.uid(); guardar(); }
     const pendiente = id => !Nube.confirmado(id);
     if (pendiente(idCar(p))) Nube.registrar("caracterizacion", Object.assign(estudiante(), {
-      idRegistro: idCar(p), edad: p.edad, dispositivo: p.dispositivo, internet: p.internet }));
+      ...datosCar(p) }));
     NIVELES.forEach(nv => {
       const dg = S.diag[nv.id];
       if (dg && pendiente(idDia(p, nv, dg.fecha))) {
@@ -560,6 +565,78 @@
   });
   renderGaleria();
 
+  /* ---------- Visor de documentos (Informes y Revista) ---------- */
+  const visor = $("#visor");
+  function abrirDocumento(titulo, pdf, descarga) {
+    $("#visorTitulo").textContent = titulo;
+    $("#visorFrame").src = pdf;
+    $("#visorAbrir").href = pdf;
+    $("#visorDescargar").href = descarga || pdf;
+    $("#visorDescargar").setAttribute("download", (descarga || pdf).split("/").pop());
+    // En celulares los PDF no siempre se muestran incrustados: se abren en pestaña nueva
+    if (window.matchMedia("(max-width: 680px)").matches) { window.open(pdf, "_blank", "noopener"); return; }
+    visor.showModal();
+  }
+  $("#visorCerrar").addEventListener("click", () => { visor.close(); $("#visorFrame").src = "about:blank"; });
+  visor.addEventListener("close", () => { $("#visorFrame").src = "about:blank"; });
+
+  /* ---------- Repositorio de informes ---------- */
+  $("#repoInformes").innerHTML = INFORMES.map((d, i) => `
+    <article class="doc-card">
+      <button class="doc-cover" data-i="${i}" aria-label="Ver ${esc(d.titulo)}">
+        <img src="${d.portada}" alt="Portada: ${esc(d.titulo)}" loading="lazy">
+        <span class="doc-num">${esc(d.numero)}</span>
+        <span class="ver">👁 Ver documento</span>
+      </button>
+      <div class="doc-body">
+        <div class="doc-meta">${d.etiquetas.map(e => `<span>${esc(e)}</span>`).join("")}</div>
+        <h3>${esc(d.numero)} · ${esc(d.titulo)}</h3>
+        <p>${esc(d.subtitulo)}</p>
+        <p style="font-size:.8rem">${fechaLarga(d.fecha)} · ${d.paginas} páginas</p>
+        <p>${esc(d.resumen)}</p>
+        <div class="doc-acc">
+          <button class="btn btn-rosa btn-sm" data-i="${i}">Ver</button>
+          ${d.docx ? `<a class="btn btn-line btn-sm" href="${d.docx}" download>Descargar Word</a>` : ""}
+          <a class="btn btn-line btn-sm" href="${d.pdf}" download>Descargar PDF</a>
+        </div>
+      </div>
+    </article>`).join("");
+  $$("#repoInformes [data-i]").forEach(b => b.addEventListener("click", () => {
+    const d = INFORMES[+b.dataset.i]; abrirDocumento(`${d.numero} · ${d.titulo}`, d.pdf, d.docx || d.pdf);
+  }));
+
+  /* ---------- Revista académica ---------- */
+  $("#repoRevista").innerHTML = REVISTA.map((v, i) => {
+    const listo = !!v.pdf;
+    const portada = v.portada ? `<img src="${v.portada}" alt="Portada ${esc(v.volumen)}" loading="lazy">`
+      : `<span class="rev-cover"><small>Revista académica · RACR</small><span class="vol">${esc(v.volumen)}</span><span><b>${esc(v.titulo)}</b><br><i>${esc(v.numero)} · ${esc(v.fecha)}</i></span></span>`;
+    return `<article class="doc-card ${listo ? "" : "proximo"}">
+      <button class="doc-cover" data-v="${i}" ${listo ? "" : "disabled"} aria-label="${listo ? "Ver" : "Próximamente"} ${esc(v.volumen)}">${portada}${listo ? `<span class="ver">👁 Ver volumen</span>` : ""}</button>
+      <div class="doc-body">
+        ${listo ? "" : `<span class="estado-chip">En preparación</span>`}
+        <h3>${esc(v.volumen)} · ${esc(v.numero)}</h3>
+        <p>${esc(v.descripcion)}</p>
+        <div class="doc-acc">${listo ? `<button class="btn btn-rosa btn-sm" data-v="${i}">Ver</button><a class="btn btn-line btn-sm" href="${v.pdf}" download>Descargar</a>`
+          : `<span class="sub" style="font-size:.8rem">Disponible: ${esc(v.fecha)}</span>`}</div>
+      </div>
+    </article>`;
+  }).join("");
+  $$("#repoRevista [data-v]").forEach(b => b.addEventListener("click", () => {
+    const v = REVISTA[+b.dataset.v]; if (v.pdf) abrirDocumento(`Revista académica · ${v.volumen} · ${v.titulo}`, v.pdf, v.pdf);
+  }));
+
+  /* ---------- Redes sociales ---------- */
+  const ICONO_RED = {
+    Instagram: ['ig', '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></svg>'],
+    Facebook: ['fb', '<svg viewBox="0 0 24 24"><path d="M14.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.5V4.4c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v2.4H9.2v3h2.5V21"/></svg>'],
+    TikTok: ['tt', '<svg viewBox="0 0 24 24"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.1 4.3 5 4.6"/></svg>']
+  };
+  $("#redes").innerHTML = REDES.map(r => {
+    const [cls, svg] = ICONO_RED[r.red] || ["ig", ""];
+    const inner = `<span class="red-ico ${cls}">${svg}</span><h3>${esc(r.red)}</h3>${r.url ? `<span class="sub">${esc(r.usuario || "Síguenos")}</span>` : `<span class="prox">Próximamente</span>`}`;
+    return r.url ? `<a class="red" href="${esc(r.url)}" target="_blank" rel="noopener">${inner}</a>` : `<div class="red" aria-label="${esc(r.red)}: próximamente">${inner}</div>`;
+  }).join("");
+
   /* ---------- Panel del administrador ---------- */
   const AK = "ci-ensma-admin";
   const claveAdmin = { get() { try { return sessionStorage.getItem(AK) || ""; } catch (e) { return ""; } },
@@ -595,23 +672,37 @@
     return `<div class="comp-res">${ks.sort().map(k => `<div class="comp-row"><span>${esc(k)}</span><div class="track"><i style="width:${Math.max(100 * obj[k] / (total || 1), 2)}%"></i></div><b>${obj[k]}</b></div>`).join("")}</div>`;
   }
 
+  /* ---------- Dashboard del administrador ---------- */
+  const NIVEL_SIM = { "El agua en mi casa": "Nivel I (6.° y 7.°)", "Campaña de reciclaje en la Normal": "Nivel II (8.° y 9.°)", "Residuos en la ribera del Magdalena": "Nivel III (10.° y 11.°)" };
+  const NOMBRES_NIVEL = NIVELES.map(n => nombreNivel(n));
+  const DOCENTE_GRADO = { 6: "Fredy Ruge", 7: "Norly Ramiro", 8: "Javier Leal", 9: "Álvaro Mejía", 10: "Miguel Medina y Álvaro Mejía", 11: "Miguel Medina" };
+  const SECCION_NOMBRE = { inicio: "Inicio", proyecto: "El proyecto", noticias: "Noticias", galeria: "Galería", informes: "Informes", redes: "Redes sociales",
+    "nivel-n1": "Nivel I", "nivel-n2": "Nivel II", "nivel-n3": "Nivel III", cronograma: "Cronograma", progreso: "Mi progreso" };
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  const f1 = n => fmt(n, 1);
+  const lista = arr => arr.length <= 1 ? arr.join("") : arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1];
+
+  function tarjeta(id, titulo, sub, full) {
+    return `<section class="dash-card ${full ? "full" : ""}"><h3>${titulo}</h3><p class="sub">${sub}</p><div class="chart" id="${id}"></div><div id="${id}-leg"></div><div class="analisis" id="${id}-an"></div></section>`;
+  }
+  function analisis(id, cuanti, cuali) {
+    const el = document.getElementById(id + "-an"); if (!el) return;
+    el.innerHTML = `<div class="cuanti"><span class="t">Análisis cuantitativo</span>${cuanti}</div><div class="cuali"><span class="t">Análisis cualitativo</span>${cuali}</div>`;
+  }
+  function sinDatos(id, msg) { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="dash-aviso">${msg}</div>`; }
+  const AVISO_V2 = "Este indicador requiere la versión 2 del script (Code.gs). Pegue el código actualizado en Apps Script y publique una <b>nueva versión</b> de la misma implementación; la URL, los permisos y la hoja no cambian.";
+
   function renderAdmin(r) {
-    const t = r.totales;
-    const grados = Object.fromEntries(Object.entries(r.porGrado).map(([g, n]) => [g + "°", n]));
-    const niveles = Object.entries(r.niveles).map(([nom, n]) => `
-      <div class="card">
-        <h3 style="margin-bottom:4px">${esc(nom)}</h3>
-        <p class="sub" style="margin-bottom:10px">${n.n} diagnóstico(s) · nota promedio <b>${n.promedioNota.toFixed(1)}</b> ${badge(n.promedioNota)}</p>
-        <div class="espacios" style="margin-bottom:12px">${["Bajo", "Básico", "Alto", "Superior"].map(d => `<span>${d}: ${n.desempeno[d] || 0}</span>`).join("")}</div>
-        <div class="comp-res">${Object.entries(COMPETENCIAS).map(([k, c]) => {
-          const v = n.comp[k] || 0; return `<div class="comp-row"><span>${c.nombre}</span><div class="track"><i style="width:${Math.max(v, 2)}%"></i></div><b>${v} %</b></div>`; }).join("")}</div>
-      </div>`).join("") || `<p class="sub">Aún no hay diagnósticos.</p>`;
-    const retos = Object.entries(r.retos).map(([id, x]) => `<tr><td>${esc(x.nivel)}</td><td>${esc(x.titulo)}</td><td>${x.intentos}</td><td>${x.intentos ? Math.round(100 * x.correctos / x.intentos) : 0} %</td><td>${x.resolvieron}</td></tr>`).join("");
-    const ult = r.ultimosDiagnosticos.map(d => `<tr><td>${new Date(d.fecha).toLocaleString("es-CO")}</td><td>${esc(d.nombre)}</td><td>${esc(d.grado)}° ${esc(d.curso)}</td><td>${esc(d.nivel)}</td><td>${Number(d.nota).toFixed(1)}</td><td>${badge(Number(d.nota))}</td></tr>`).join("");
+    const v2 = r.version === 2, t = r.totales;
+    const part = v2 ? r.participacion : { caracterizacion: t.estudiantes, diagnostico: null, retos: null, retosResueltos: null, simulaciones: null, completos: null, totalEstudiantes: t.estudiantes };
+    const simNivel = v2 ? r.simPorNivel : Object.entries(r.simulaciones || {}).reduce((o, [k, n]) => { const nv = NIVEL_SIM[k] || k; o[nv] = (o[nv] || 0) + n; return o; }, {});
+    const totSim = Object.values(simNivel).reduce((a, b) => a + b, 0);
+    const vis = v2 ? r.visitas : null;
+
     $("#adminBody").innerHTML = `
       <div class="perfil-card">
         <div class="avatar">A</div>
-        <div><h3>Base de datos: ${esc(r.hojaDeCalculo)}</h3><p>Datos actualizados al ${new Date().toLocaleString("es-CO")}</p></div>
+        <div><h3>Dashboard · ${esc(r.hojaDeCalculo)}</h3><p>Datos consultados el ${new Date().toLocaleString("es-CO")}${v2 ? "" : " · script versión 1"}</p></div>
         <div class="acciones">
           <a class="btn btn-celeste btn-sm" href="${esc(r.url)}" target="_blank" rel="noopener">Abrir Google Sheets</a>
           <button class="btn btn-line btn-sm" id="admRef">Actualizar</button>
@@ -620,37 +711,204 @@
       </div>
       <div class="kpis" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
         <div class="kpi k-rosa"><span>Estudiantes caracterizados</span><b>${t.estudiantes}</b></div>
-        <div class="kpi"><span>Diagnósticos</span><b>${t.diagnosticos}</b></div>
-        <div class="kpi k-cel"><span>Intentos de retos</span><b>${t.retos}</b></div>
-        <div class="kpi"><span>Escenarios guardados</span><b>${t.simulaciones}</b></div>
-        <div class="kpi"><span>Registros de caracterización</span><b>${t.caracterizacion}</b></div>
+        <div class="kpi"><span>Presentaron diagnóstico</span><b>${part.diagnostico ?? t.diagnosticos}</b></div>
+        <div class="kpi k-cel"><span>Completaron todo</span><b>${part.completos ?? "—"}</b></div>
+        <div class="kpi"><span>Escenarios de simulación</span><b>${t.simulaciones}</b></div>
+        <div class="kpi"><span>Visitas (30 días)</span><b>${vis ? vis.total30 : "—"}</b></div>
       </div>
-      ${r.ultimoError ? `<p class="aviso" style="margin:0 0 24px">Último error reportado: <code>${esc(r.ultimoError)}</code></p>` : ""}
-      <div class="sec-head" style="margin-top:12px"><p class="eyebrow">Caracterización</p><h2>Estudiantes por grado</h2></div>
-      <div class="two">
-        <div class="card">${barras(grados, t.estudiantes)}</div>
-        <div class="card"><h3>Dispositivo en casa</h3>${barras(r.dispositivo, t.estudiantes)}<h3 style="margin-top:16px">Internet en casa</h3>${barras(r.internet, t.estudiantes)}</div>
+      ${v2 ? "" : `<div class="dash-aviso" style="margin-bottom:22px">El script de Google conectado es la <b>versión 1</b>: se muestran los indicadores disponibles. ${AVISO_V2}</div>`}
+      ${r.ultimoError ? `<p class="aviso" style="margin:0 0 24px">Último error reportado por el script: <code>${esc(r.ultimoError)}</code></p>` : ""}
+      <div class="dash-grid">
+        ${tarjeta("dVis", "Visitas al sitio", "Visitas y visitantes por día durante los últimos 30 días.", true)}
+        ${tarjeta("dSec", "Visitas por sección", "Secciones más consultadas en los últimos 30 días.")}
+        ${tarjeta("dPart", "Estudiantes participando por sección", "Estudiantes distintos que han usado cada espacio del sitio.")}
+        ${tarjeta("dSim", "Simulaciones creadas por nivel", "Escenarios de simulación guardados por los estudiantes.")}
+        ${tarjeta("dGrado", "Promedio de calificación por grado", "Nota promedio del diagnóstico (escala 1.0 a 5.0).")}
+        <section class="dash-card full"><h3>Estudiantes con mejor promedio por nivel</h3><p class="sub">Promedio de los diagnósticos presentados por cada estudiante (5 mejores por nivel).</p><div class="prog-grid" id="dTop"></div><div class="analisis" id="dTop-an"></div></section>
+        <section class="dash-card full"><h3>Estudiantes que no han completado las actividades</h3><p class="sub">Actividades del nivel que corresponde al grado de cada estudiante: diagnóstico, 3 retos y al menos una simulación guardada.</p>
+          <div class="filtro-dash"><select id="pfGrado"><option value="">Todos los grados</option>${[6, 7, 8, 9, 10, 11].map(g => `<option value="${g}">${g}.°</option>`).join("")}</select>
+          <input id="pfBuscar" placeholder="Buscar estudiante o curso"><button class="btn btn-line btn-sm" id="pfCsv">Descargar listado (CSV)</button></div>
+          <div id="dPend"></div><div class="analisis" id="dPend-an"></div></section>
+        ${tarjeta("dTerr", "Caracterización tecnológica y territorial", "Zona de residencia, conectividad principal y problemática de interés de los estudiantes.", true)}
+        <section class="dash-card full"><h3>Línea base por nivel y competencia</h3><p class="sub">Porcentaje de logro promedio en cada competencia del diagnóstico.</p><div class="prog-grid" id="dComp"></div><div class="analisis" id="dComp-an"></div></section>
+        <section class="dash-card full"><h3>Desempeño en los retos</h3><div id="dRetos"></div></section>
+        <section class="dash-card full"><h3>Últimos diagnósticos</h3><div id="dUlt"></div></section>
       </div>
-      <div class="sec-head"><p class="eyebrow">Línea base</p><h2>Diagnóstico por nivel</h2></div>
-      <div class="prog-grid">${niveles}</div>
-      <div class="sec-head"><p class="eyebrow">Retos</p><h2>Desempeño en los retos</h2></div>
-      ${retos ? `<div class="tabla-wrap"><table class="tabla"><thead><tr><th>Nivel</th><th>Reto</th><th>Intentos</th><th>Aciertos</th><th>Estudiantes que lo resolvieron</th></tr></thead><tbody>${retos}</tbody></table></div>` : `<p class="sub">Aún no hay intentos.</p>`}
-      <div class="sec-head"><p class="eyebrow">Simulaciones</p><h2>Escenarios guardados</h2></div>
-      <div class="card">${barras(r.simulaciones, t.simulaciones)}</div>
-      <div class="sec-head"><p class="eyebrow">Actividad reciente</p><h2>Últimos diagnósticos</h2></div>
-      ${ult ? `<div class="tabla-wrap"><table class="tabla"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Grado</th><th>Nivel</th><th>Nota</th><th>Desempeño</th></tr></thead><tbody>${ult}</tbody></table></div>` : `<p class="sub">Aún no hay diagnósticos.</p>`}
-      <p class="aviso">La información completa, con respuestas, conclusiones y parámetros de cada simulación, está en Google Sheets. Esa hoja solo la pueden abrir las cuentas con las que se haya compartido en Drive.</p>`;
+      <p class="aviso">Los análisis se generan automáticamente a partir de los datos de la hoja de cálculo y deben leerse junto con el criterio pedagógico del equipo docente.</p>`;
     $("#admRef").addEventListener("click", () => cargarAdmin(claveAdmin.get()));
     $("#admOut").addEventListener("click", () => { claveAdmin.set(""); adminLogin(); toast("Sesión de administrador cerrada"); });
+
+    /* 1. Visitas por día */
+    if (!vis) { sinDatos("dVis", AVISO_V2); sinDatos("dSec", AVISO_V2); }
+    else {
+      const xs = vis.porDia.map(d => d.dia.slice(8, 10) + "/" + d.dia.slice(5, 7));
+      const sv = [{ name: "Visitas", color: COL.rosa, values: vis.porDia.map(d => d.visitas), area: true },
+                  { name: "Visitantes distintos", color: COL.celeste, values: vis.porDia.map(d => d.visitantes) }];
+      lineChart($("#dVis"), { xs, series: sv, xlabel: "Día" });
+      $("#dVis-leg").innerHTML = leyenda(sv);
+      const v = vis.porDia.map(d => d.visitas), u7 = v.slice(-7).reduce((a, b) => a + b, 0), p7 = v.slice(-14, -7).reduce((a, b) => a + b, 0);
+      const pico = vis.porDia.reduce((a, d) => d.visitas > a.visitas ? d : a, vis.porDia[0]);
+      const activos = v.filter(x => x > 0).length;
+      const tend = p7 ? Math.round(100 * (u7 - p7) / p7) : null;
+      if (!vis.total30) analisis("dVis", "Aún no hay visitas registradas en los últimos 30 días.", "El conteo inicia cuando los estudiantes abren el sitio con la versión 2 del script. Conviene socializar el enlace en cada grado.");
+      else analisis("dVis",
+        `Se registran <b>${vis.total30}</b> visitas en 30 días (promedio de <b>${f1(vis.total30 / 30)}</b> por día), con actividad en ${activos} de 30 días. El pico fue el ${pico.dia.slice(8, 10)}/${pico.dia.slice(5, 7)} con ${pico.visitas} visitas. Últimos 7 días: ${u7} visitas${tend === null ? "" : ` (${tend >= 0 ? "+" : ""}${tend} % frente a la semana anterior)`}.`,
+        tend === null ? "El uso del sitio está concentrado en los días de trabajo de aula; todavía no hay suficiente historial para establecer una tendencia."
+          : tend >= 10 ? "El interés por el sitio <b>crece</b>: las actividades programadas están movilizando a los estudiantes. Es un buen momento para publicar noticias y nuevos retos."
+          : tend <= -10 ? "Las visitas <b>disminuyen</b> frente a la semana anterior. Se recomienda reactivar el uso con una actividad de aula, recordar los pendientes y divulgar avances en Noticias."
+          : "El uso del sitio es <b>estable</b>. Los picos coinciden con las sesiones de aula, lo que indica que el acceso depende principalmente de la orientación docente.");
+      const sec = Object.entries(vis.porSeccion).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      if (!sec.length) sinDatos("dSec", "Sin visitas registradas todavía.");
+      else {
+        barChart($("#dSec"), { cats: sec.map(([k]) => SECCION_NOMBRE[k] || k), series: [{ name: "Visitas", color: COL.celeste, values: sec.map(([, n]) => n) }] });
+        const tot = sec.reduce((a, [, n]) => a + n, 0), niv = sec.filter(([k]) => k.startsWith("nivel")).reduce((a, [, n]) => a + n, 0);
+        analisis("dSec", `La sección más consultada es <b>${SECCION_NOMBRE[sec[0][0]] || sec[0][0]}</b> (${pct(sec[0][1], tot)} % de las visitas). Los tres niveles suman ${pct(niv, tot)} % del tráfico.`,
+          niv >= tot / 2 ? "Los estudiantes usan el sitio principalmente para las actividades de su nivel, que es el propósito central del Centro de Interés."
+            : "Predomina la consulta de secciones informativas. Conviene orientar a los estudiantes hacia su nivel (diagnóstico, retos y simulaciones).");
+      }
+    }
+
+    /* 2. Participación por sección */
+    if (!v2) sinDatos("dPart", AVISO_V2);
+    else {
+      const cats = ["Caracterización", "Diagnóstico", "Retos (intentaron)", "Retos (resolvieron)", "Simulaciones", "Completaron todo"];
+      const vals = [part.caracterizacion, part.diagnostico, part.retos, part.retosResueltos, part.simulaciones, part.completos];
+      barChart($("#dPart"), { cats: ["Caracteriz.", "Diagnóstico", "Retos: intento", "Retos: logro", "Simulación", "Completo"], series: [{ name: "Estudiantes", color: COL.rosa, values: vals }] });
+      const base = part.caracterizacion || 1;
+      const pasos = [["diagnóstico", part.diagnostico], ["retos", part.retos], ["simulaciones", part.simulaciones]];
+      const menor = pasos.slice().sort((a, b) => a[1] - b[1])[0];
+      analisis("dPart",
+        `De <b>${part.caracterizacion}</b> estudiantes caracterizados, ${pct(part.diagnostico, base)} % presentó el diagnóstico, ${pct(part.retos, base)} % intentó retos (${pct(part.retosResueltos, base)} % resolvió al menos uno), ${pct(part.simulaciones, base)} % guardó una simulación y <b>${pct(part.completos, base)} %</b> completó todas las actividades.`,
+        !part.caracterizacion ? "Aún no hay estudiantes registrados." :
+        `El espacio con menor participación es <b>${menor[0]}</b>, que se convierte en el principal punto de refuerzo. ${pct(part.completos, base) >= 80 ? "La meta de participación del 80 % se está cumpliendo." : `Para acercarse a la meta del 80 %, los docentes de cada grado pueden programar un momento de clase dedicado a ${menor[0]}.`}`);
+    }
+
+    /* 3. Simulaciones por nivel */
+    {
+      const vals = NOMBRES_NIVEL.map(n => simNivel[n] || 0);
+      barChart($("#dSim"), { cats: ["Nivel I", "Nivel II", "Nivel III"], series: [{ name: "Escenarios", color: COL.celeste, values: vals }] });
+      if (!totSim) analisis("dSim", "Aún no hay escenarios de simulación guardados.", "Las simulaciones son el puente hacia la fase 2027; se recomienda que cada grupo guarde al menos un escenario con sus conclusiones.");
+      else {
+        const max = vals.indexOf(Math.max(...vals)), min = vals.indexOf(Math.min(...vals)), nv = ["Nivel I", "Nivel II", "Nivel III"];
+        analisis("dSim", `Se han guardado <b>${totSim}</b> escenarios: Nivel I ${vals[0]} (${pct(vals[0], totSim)} %), Nivel II ${vals[1]} (${pct(vals[1], totSim)} %) y Nivel III ${vals[2]} (${pct(vals[2], totSim)} %).`,
+          vals[max] === vals[min] ? "La exploración de escenarios está <b>equilibrada</b> entre los tres niveles. El siguiente paso es aumentar la cantidad de escenarios por estudiante y la calidad de las conclusiones registradas." :
+          `El <b>${nv[max]}</b> lidera la exploración de escenarios. ${vals[min] === 0 ? `El ${nv[min]} todavía no registra simulaciones: conviene acompañar su primera sesión.` : `El ${nv[min]} presenta menor uso; se sugiere orientar la discusión de las preguntas de reflexión para que los estudiantes guarden sus conclusiones.`}`);
+      }
+    }
+
+    /* 4. Promedio por grado */
+    if (!v2) sinDatos("dGrado", AVISO_V2);
+    else {
+      const gs = [6, 7, 8, 9, 10, 11].filter(g => r.promedioPorGrado[g]);
+      if (!gs.length) { sinDatos("dGrado", "Aún no hay diagnósticos presentados."); }
+      else {
+        barChart($("#dGrado"), { cats: gs.map(g => g + ".°"), series: [{ name: "Promedio", color: COL.rosa, values: gs.map(g => r.promedioPorGrado[g].promedio) }] });
+        const arr = gs.map(g => ({ g, ...r.promedioPorGrado[g] }));
+        const mejor = arr.reduce((a, b) => b.promedio > a.promedio ? b : a), peor = arr.reduce((a, b) => b.promedio < a.promedio ? b : a);
+        const gen = arr.reduce((a, b) => a + b.promedio * b.n, 0) / arr.reduce((a, b) => a + b.n, 0);
+        const bajos = arr.filter(x => x.promedio < 3).map(x => x.g + ".°");
+        analisis("dGrado",
+          `Promedio general: <b>${f1(gen)}</b> (${desempeno(gen).nombre}). El grado con mejor promedio es ${mejor.g}.° (${f1(mejor.promedio)}, ${mejor.n} diagnósticos) y el más bajo ${peor.g}.° (${f1(peor.promedio)}). Diferencia entre grados: ${f1(mejor.promedio - peor.promedio)} puntos.`,
+          bajos.length ? `${lista(bajos)} ${bajos.length > 1 ? "se ubican" : "se ubica"} en desempeño <b>Bajo</b> (menos de 3.0): se recomienda priorizar actividades de refuerzo con los responsables de esos grados (${lista([...new Set(bajos.map(g => DOCENTE_GRADO[parseInt(g)]))])}).`
+            : `Todos los grados alcanzan al menos desempeño Básico. ${gen >= 4 ? "La línea base es alta: los retos pueden aumentar su nivel de exigencia." : "La línea base indica un punto de partida intermedio, coherente con el propósito de fortalecer las competencias durante 2027."}`);
+      }
+    }
+
+    /* 5. Mejores promedios por nivel */
+    if (!v2) { $("#dTop").innerHTML = `<div class="dash-aviso">${AVISO_V2}</div>`; }
+    else {
+      $("#dTop").innerHTML = NOMBRES_NIVEL.map(n => {
+        const l = r.mejores[n] || [];
+        return `<div class="card"><h3 style="margin-bottom:10px">${esc(n)}</h3>${l.length ? `<ol class="top-list">${l.map((e, i) => `<li><span class="pos">${i + 1}</span><span><b>${esc(e.nombre)}</b><br><small>${esc(e.grado)}.° ${esc(e.curso || "")} · ${e.intentos} intento(s)</small></span><span>${f1(e.promedio)} ${badge(e.promedio)}</span></li>`).join("")}</ol>` : `<p class="sub">Sin diagnósticos todavía.</p>`}</div>`;
+      }).join("");
+      const tops = NOMBRES_NIVEL.map(n => (r.mejores[n] || [])[0]).filter(Boolean);
+      const sup = Object.values(r.mejores).flat().filter(e => e.promedio >= 4.6).length;
+      analisis("dTop", tops.length ? `Mejores promedios: ${tops.map(e => `${esc(e.nombre)} (${e.grado}.°, ${f1(e.promedio)})`).join("; ")}. ${sup} de los estudiantes destacados alcanzan desempeño Superior.` : "Aún no hay diagnósticos para establecer un ranking.",
+        tops.length ? "Los estudiantes destacados pueden asumir el rol de <b>monitores o tutores pares</b> en los retos y simulaciones de su nivel, fortaleciendo el trabajo colaborativo propuesto en la ruta RACR." : "El ranking se construirá a medida que los estudiantes presenten el diagnóstico.");
+    }
+
+    /* 6. Pendientes */
+    if (!v2) { $("#dPend").innerHTML = `<div class="dash-aviso">${AVISO_V2}</div>`; $(".filtro-dash").style.display = "none"; }
+    else {
+      const pintar = () => {
+        const g = $("#pfGrado").value, q = $("#pfBuscar").value.trim().toLowerCase();
+        const l = r.pendientes.filter(e => (!g || String(e.grado) === g) && (!q || (e.nombre + " " + e.curso).toLowerCase().includes(q)));
+        $("#dPend").innerHTML = l.length ? `<div class="tabla-wrap" style="max-height:420px;overflow:auto"><table class="tabla"><thead><tr><th>Estudiante</th><th>Grado</th><th>Nivel</th><th>Le falta</th><th>Avance</th></tr></thead><tbody>${
+          l.map(e => `<tr><td>${esc(e.nombre)}</td><td>${esc(e.grado)}.° ${esc(e.curso || "")}</td><td>${esc(e.nivel.split(" (")[0])}</td><td>${e.faltan.map(f => `<span class="falta">${esc(f)}</span>`).join("")}</td><td><b>${e.avance} %</b></td></tr>`).join("")}</tbody></table></div><p class="sub" style="margin-top:6px">${l.length} estudiante(s) en el filtro.</p>`
+          : `<div class="dash-aviso">${r.pendientes.length ? "Ningún estudiante coincide con el filtro." : "Todos los estudiantes registrados completaron sus actividades."}</div>`;
+      };
+      $("#pfGrado").addEventListener("change", pintar); $("#pfBuscar").addEventListener("input", pintar); pintar();
+      $("#pfCsv").addEventListener("click", () => {
+        const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const filas = [["Estudiante", "Grado", "Curso", "Nivel", "Le falta", "Avance %"].map(q).join(";"), ...r.pendientes.map(e => [e.nombre, e.grado, e.curso, e.nivel, e.faltan.join(", "), e.avance].map(q).join(";"))];
+        const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + filas.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+        a.download = "estudiantes_pendientes_RACR.csv"; document.body.append(a); a.click(); a.remove();
+      });
+      const tot = part.totalEstudiantes || 0, pend = r.pendientes.length;
+      const conteo = {}; r.pendientes.forEach(e => e.faltan.forEach(f => { const k = f.split(" (")[0]; conteo[k] = (conteo[k] || 0) + 1; }));
+      const masFalta = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0];
+      const porGrado = {}; r.pendientes.forEach(e => porGrado[e.grado] = (porGrado[e.grado] || 0) + 1);
+      const gMas = Object.entries(porGrado).sort((a, b) => b[1] - a[1])[0];
+      const avProm = pend ? Math.round(r.pendientes.reduce((a, e) => a + e.avance, 0) / pend) : 100;
+      analisis("dPend",
+        tot ? `<b>${pend}</b> de ${tot} estudiantes (${pct(pend, tot)} %) tienen actividades pendientes; ${part.completos} completaron todo. Avance promedio de quienes tienen pendientes: ${avProm} %.${masFalta ? ` La actividad que más falta es <b>${masFalta[0]}</b> (${masFalta[1]} estudiantes).` : ""}` : "Aún no hay estudiantes registrados.",
+        !pend ? "Todos los estudiantes registrados completaron la ruta de su nivel." :
+        `${gMas ? `El grado con más pendientes es <b>${gMas[0]}.°</b> (${gMas[1]} estudiantes; responsable: ${DOCENTE_GRADO[gMas[0]] || "por asignar"}). ` : ""}Se recomienda compartir este listado con cada docente responsable para programar un espacio de cierre de actividades antes de la consolidación de resultados.`);
+    }
+
+    /* 7. Caracterización territorial */
+    if (!v2) sinDatos("dTerr", AVISO_V2);
+    else {
+      const host = $("#dTerr");
+      const bloque = (titulo, obj) => `<div class="card"><h3 style="font-size:1rem">${titulo}</h3>${barras(obj, t.estudiantes)}</div>`;
+      host.innerHTML = `<div class="prog-grid">${bloque("Zona de residencia", r.zona)}${bloque("Conectividad principal", r.conectividad)}${bloque("Problemática de interés", r.problematica)}</div>
+        <div class="two" style="margin-top:16px">${bloque("Dispositivo en casa", r.dispositivo)}${bloque("Internet en casa", r.internet)}</div>`;
+      const n = t.estudiantes || 0, rural = Object.entries(r.zona).filter(([k]) => k.startsWith("Rural")).reduce((a, [, v]) => a + v, 0);
+      const limit = (r.conectividad["Datos del celular (recargas o plan)"] || 0) + (r.conectividad["Casi nunca me conecto"] || 0) + (r.conectividad["Zona wifi pública, biblioteca o café internet"] || 0);
+      const sinDato = r.zona["Sin dato"] || 0;
+      const prob = Object.entries(r.problematica).filter(([k]) => k !== "Sin dato").sort((a, b) => b[1] - a[1]);
+      const soloCel = r.dispositivo["Celular"] || 0;
+      analisis("dTerr",
+        n ? `${pct(rural, n)} % de los estudiantes vive en zona rural y ${pct(limit, n)} % depende de datos móviles, zonas públicas o casi no se conecta. ${pct(soloCel, n)} % cuenta solo con celular.${prob.length ? ` Problemática más elegida: <b>${prob[0][0]}</b> (${prob[0][1]} estudiantes${prob[1] ? `), seguida de ${prob[1][0]} (${prob[1][1]}` : ""}).` : ""}${sinDato ? ` ${sinDato} estudiante(s) aún no responden las preguntas nuevas.` : ""}` : "Aún no hay estudiantes caracterizados.",
+        !n ? "—" : `${pct(limit, n) >= 30 ? "Existe una <b>brecha de conectividad</b> relevante: conviene priorizar actividades que funcionen en el colegio y en celular, y aprovechar el envío sin conexión del sitio. " : "La mayoría de los estudiantes tiene conectividad estable, lo que permite proponer trabajo autónomo desde casa. "}${prob.length ? `Las problemáticas elegidas (${lista(prob.slice(0, 3).map(p => p[0].toLowerCase()))}) orientan el <b>reconocimiento del territorio</b> y la selección de escenarios de simulación para 2027.` : ""}`);
+    }
+
+    /* 8. Línea base por nivel y competencia */
+    const niv = Object.entries(r.niveles || {});
+    $("#dComp").innerHTML = niv.length ? niv.map(([nom, n]) => `
+      <div class="card">
+        <h3 style="margin-bottom:4px">${esc(nom)}</h3>
+        <p class="sub" style="margin-bottom:10px">${n.n} diagnóstico(s) · nota promedio <b>${n.promedioNota.toFixed(1)}</b> ${badge(n.promedioNota)}</p>
+        <div class="comp-res">${Object.entries(COMPETENCIAS).map(([k, c]) => { const v = n.comp[k] || 0; return `<div class="comp-row"><span>${c.nombre}</span><div class="track"><i style="width:${Math.max(v, 2)}%"></i></div><b>${v} %</b></div>`; }).join("")}</div>
+      </div>`).join("") : `<div class="dash-aviso">Aún no hay diagnósticos.</div>`;
+    if (niv.length) {
+      const debil = niv.map(([nom, n]) => { const [k, v] = Object.entries(n.comp).sort((a, b) => a[1] - b[1])[0]; return { nom: nom.split(" (")[0], c: COMPETENCIAS[k].nombre, v }; });
+      const fuerte = niv.map(([nom, n]) => { const [k, v] = Object.entries(n.comp).sort((a, b) => b[1] - a[1])[0]; return { nom: nom.split(" (")[0], c: COMPETENCIAS[k].nombre, v }; });
+      analisis("dComp", debil.map((d, i) => `${d.nom}: competencia más baja <b>${d.c.toLowerCase()}</b> (${d.v} %), más alta ${fuerte[i].c.toLowerCase()} (${fuerte[i].v} %).`).join("<br>"),
+        `Las competencias con menor logro definen los <b>focos de intervención</b> de cada nivel y deben guiar el diseño de los retos y simulaciones de la siguiente fase. ${new Set(debil.map(d => d.c)).size === 1 ? `Todos los niveles coinciden en ${debil[0].c.toLowerCase()}, lo que sugiere un trabajo institucional transversal.` : ""}`);
+    }
+
+    /* 9. Retos y últimos diagnósticos */
+    const retos = Object.entries(r.retos || {}).map(([id, x]) => `<tr><td>${esc(x.nivel)}</td><td>${esc(x.titulo)}</td><td>${x.intentos}</td><td>${pct(x.correctos, x.intentos)} %</td><td>${x.resolvieron}</td></tr>`).join("");
+    $("#dRetos").innerHTML = retos ? `<div class="tabla-wrap"><table class="tabla"><thead><tr><th>Nivel</th><th>Reto</th><th>Intentos</th><th>Aciertos</th><th>Estudiantes que lo resolvieron</th></tr></thead><tbody>${retos}</tbody></table></div>` : `<div class="dash-aviso">Aún no hay intentos.</div>`;
+    const ult = (r.ultimosDiagnosticos || []).map(d => `<tr><td>${new Date(d.fecha).toLocaleString("es-CO")}</td><td>${esc(d.nombre)}</td><td>${esc(d.grado)}.° ${esc(d.curso)}</td><td>${esc(d.nivel)}</td><td>${Number(d.nota).toFixed(1)}</td><td>${badge(Number(d.nota))}</td></tr>`).join("");
+    $("#dUlt").innerHTML = ult ? `<div class="tabla-wrap"><table class="tabla"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Grado</th><th>Nivel</th><th>Nota</th><th>Desempeño</th></tr></thead><tbody>${ult}</tbody></table></div>` : `<div class="dash-aviso">Aún no hay diagnósticos.</div>`;
   }
 
   function abrirAdmin() { const k = claveAdmin.get(); k ? cargarAdmin(k) : adminLogin(); }
+
+  // Visitas: una por sección y por sesión del navegador (el script actualizado las contabiliza)
+  function registrarVisita(seccion) {
+    const k = "ci-ensma-visita-" + seccion;
+    try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch (e) {}
+    Nube.visita(seccion);
+  }
 
   /* ---------- Navegación ---------- */
   const VISTAS = ["inicio", "proyecto", "cronograma", "progreso", "admin", ...NIVELES.map(n => "nivel-" + n.id)];
   function navegar() {
     const h = (location.hash || "#inicio").slice(1);
-    const subProyecto = { proyecto: "info", noticias: "noticias", galeria: "galeria" }[h];
+    const subProyecto = { proyecto: "info", noticias: "noticias", galeria: "galeria", informes: "informes", redes: "redes" }[h];
     let vista = subProyecto ? "proyecto" : VISTAS.includes(h) ? h : "inicio";
     if (subProyecto) tabProyecto(subProyecto);
     $$(".view").forEach(v => v.classList.toggle("on", v.id === vista));
@@ -664,6 +922,7 @@
     if (vista === "progreso") renderProgreso();
     if (vista === "cronograma") renderCronograma();
     if (vista === "admin") abrirAdmin();
+    else registrarVisita(subProyecto && subProyecto !== "info" ? subProyecto : vista);
   }
   window.addEventListener("hashchange", navegar);
   $(".menu-btn").addEventListener("click", e => {
@@ -675,6 +934,11 @@
   renderProgreso();
   navegar();
   setTimeout(sincronizar, 1200);
+  // Estudiantes registrados antes de la versión 1.8: se les pide responder las 3 preguntas nuevas (una vez por sesión)
+  if (S.perfil && !S.perfil.zona) {
+    let pedido = false; try { pedido = !!sessionStorage.getItem("ci-ensma-car-nueva"); sessionStorage.setItem("ci-ensma-car-nueva", "1"); } catch (e) {}
+    if (!pedido) setTimeout(() => { toast("Responde 3 preguntas nuevas sobre tu territorio"); pedirPerfil(); }, 2500);
+  }
   setInterval(sincronizar, 5 * 60 * 1000);
   window.addEventListener("online", sincronizar);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sincronizar(); });
