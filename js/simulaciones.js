@@ -31,7 +31,9 @@ function svgEl(tag, attrs = {}, text) {
 /* Barras agrupadas */
 function barChart(host, { cats, series, unidad = "" }) {
   const W = 640, H = 270, L = 58, R = 12, T = 22, B = 34;
-  const max = niceMax(Math.max(...series.flatMap(s => s.values)) * 1.08);
+  const todos = series.flatMap(s => s.values), mayor = Math.max(...todos, 0);
+  // Conteos pequeños (estudiantes): eje en números enteros
+  const max = todos.every(Number.isInteger) && mayor <= 40 ? Math.max(4, Math.ceil(mayor * 1.1 / 4) * 4) : niceMax(mayor * 1.08);
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Gráfico de barras" });
   for (let i = 0; i <= 4; i++) {
     const y = T + (H - T - B) * (1 - i / 4);

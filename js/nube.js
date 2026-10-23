@@ -114,9 +114,9 @@ const Nube = (() => {
   function descartar() { escribir(QK, []); memoria = []; avisar(); }
 
   // Consulta del panel de administrador (requiere la clave de administrador definida en Apps Script)
-  async function admin(clave) {
+  async function admin(clave, extra) {
     if (!activa()) return { ok: false, error: "La nube no está configurada en js/config.js" };
-    const d = await jsonp({ admin: clave });
+    const d = await jsonp(Object.assign({ admin: clave }, extra || {}));
     return d || { ok: false, error: "Google no respondió" };
   }
 
@@ -128,5 +128,21 @@ const Nube = (() => {
     jsonp({ visita: seccion, visitante: id });
   }
 
-  return { registrar, enviar, estado, uid, probar, descartar, admin, confirmado, visita, alCambiar: f => oyentes.push(f) };
+  // Cuenta del estudiante (usuario/contraseña). Devuelve null si no hay conexión o el script no la soporta.
+  async function cuenta(p) {
+    if (!activa() || !navigator.onLine || !p || !p.id) return null;
+    const d = await jsonp({ cuenta: p.id, clave: CONFIG_NUBE.clave, nombre: p.nombre, grado: p.grado, curso: p.curso });
+    return d && d.usuario ? { usuario: d.usuario, contrasena: d.contrasena } : null;
+  }
+  async function login(usuario, contrasena) {
+    if (!activa()) return { ok: false, error: "La nube no está configurada" };
+    if (!navigator.onLine) return { ok: false, error: "Necesitas conexión a internet para ingresar" };
+    const d = await jsonp({ login: usuario, contrasena });
+    if (!d) return { ok: false, error: "No fue posible conectar con el servidor. Intenta de nuevo." };
+    if (d.ok === true && !d.perfil) return { ok: false, error: "El ingreso con usuario aún no está activo. Avísale a tu docente." };
+    return d;
+  }
+  const marcar = ids => ids.forEach(marcarConfirmado);
+
+  return { registrar, enviar, estado, uid, probar, descartar, admin, confirmado, visita, cuenta, login, marcar, alCambiar: f => oyentes.push(f) };
 })();

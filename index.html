@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Lexend:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.8">
+<link rel="stylesheet" href="css/styles.css?v=1.9">
 </head>
 <body>
 
@@ -288,7 +288,7 @@
 <dialog id="perfilDlg">
   <form method="dialog" id="perfilForm">
     <h3>Caracterización del estudiante</h3>
-    <p class="sub">Tus datos permiten identificar tus resultados. Se guardan en la base de datos del Centro de Interés y solo los consultan tus docentes.</p>
+    <p class="sub">Todas las casillas son obligatorias. Al guardar recibirás tu <b>usuario y contraseña</b> para entrar a tu perfil desde cualquier dispositivo. ¿Ya tienes usuario? <button type="button" class="link-btn" id="irLogin">Ingresa aquí</button></p>
     <label>Nombre completo<input name="nombre" required maxlength="80" autocomplete="name"></label>
     <div class="row2">
       <label>Grado
@@ -297,15 +297,20 @@
           <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option>
         </select>
       </label>
-      <label>Curso<input name="curso" placeholder="Ej.: 902" maxlength="6"></label>
+      <label>Curso
+        <select name="curso" required>
+          <option value="">—</option>
+          <option>01</option><option>02</option><option>03</option><option>04</option><option>05</option>
+        </select>
+      </label>
     </div>
     <div class="row3">
-      <label>Edad<input name="edad" type="number" min="8" max="22" inputmode="numeric"></label>
+      <label>Edad<input name="edad" type="number" min="8" max="22" inputmode="numeric" required></label>
       <label>Dispositivo en casa
-        <select name="dispositivo"><option value="">—</option><option>Computador</option><option>Celular</option><option>Tableta</option><option>Varios</option><option>Ninguno</option></select>
+        <select name="dispositivo" required><option value="">—</option><option>Computador</option><option>Celular</option><option>Tableta</option><option>Varios</option><option>Ninguno</option></select>
       </label>
       <label>Internet en casa
-        <select name="internet"><option value="">—</option><option>Sí</option><option>No</option></select>
+        <select name="internet" required><option value="">—</option><option>Sí</option><option>No</option></select>
       </label>
     </div>
     <p class="form-sep">Tu territorio y la tecnología</p>
@@ -348,6 +353,31 @@
   </form>
 </dialog>
 
+<!-- Ingreso del estudiante -->
+<dialog id="loginDlg">
+  <form method="dialog" id="loginForm">
+    <h3>Ingresar a mi perfil</h3>
+    <p class="sub">Escribe el usuario y la contraseña que recibiste al registrarte. Si los olvidaste, pídelos a tu docente.</p>
+    <label>Usuario<input name="usuario" required autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+    <label>Contraseña<input name="contrasena" type="password" required autocomplete="current-password" autocapitalize="none"></label>
+    <div class="fb mal" id="loginMsg"></div>
+    <div class="dlg-btns">
+      <button type="button" class="btn btn-line" id="loginCancel">Cancelar</button>
+      <button type="submit" class="btn btn-rosa">Ingresar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Credenciales asignadas -->
+<dialog id="credDlg">
+  <form method="dialog">
+    <h3>¡Tu cuenta está lista!</h3>
+    <p class="sub">Guarda estos datos (anótalos o toma una foto). Con ellos entras a tu perfil y a tus resultados desde cualquier celular o computador.</p>
+    <div class="cred"><span>Usuario</span><b id="credUsuario"></b><span>Contraseña</span><b id="credClave"></b></div>
+    <div class="dlg-btns"><button class="btn btn-rosa" value="ok">Ya los guardé</button></div>
+  </form>
+</dialog>
+
 <dialog id="visor" class="visor" aria-label="Visor de documentos">
   <div class="visor-bar">
     <b id="visorTitulo"></b>
@@ -369,10 +399,10 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js?v=1.8"></script>
-<script src="js/nube.js?v=1.8"></script>
-<script src="js/data.js?v=1.8"></script>
-<script src="js/simulaciones.js?v=1.8"></script>
-<script src="js/app.js?v=1.8"></script>
+<script src="js/config.js?v=1.9"></script>
+<script src="js/nube.js?v=1.9"></script>
+<script src="js/data.js?v=1.9"></script>
+<script src="js/simulaciones.js?v=1.9"></script>
+<script src="js/app.js?v=1.9"></script>
 </body>
 </html>

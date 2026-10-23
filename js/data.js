@@ -349,6 +349,10 @@ const FASES = [
    Para publicar una noticia, copie un bloque y cambie sus datos.
    ========================================================== */
 const NOTICIAS = [
+  { fecha: "2026-10-22", etiqueta: "Diagnóstico", img: "img/aplicacion-diagnostico-5.jpg",
+    titulo: "La aplicación de las pruebas diagnósticas avanza con éxito: más de 500 estudiantes participan",
+    resumen: "Durante la semana del 19 al 23 de octubre, más de 500 estudiantes de 6.° a 11.° han presentado el diagnóstico de competencias del Centro de Interés desde sus celulares y los computadores de la institución. Organizados en equipos y acompañados por los docentes del núcleo de Matemáticas y Tecnología, los estudiantes resolvieron situaciones de razonamiento, interpretación de datos, resolución de problemas, pensamiento computacional, creatividad y competencia digital, contextualizadas en Girardot. Sus resultados conforman la línea base que orientará los retos y las simulaciones de los próximos meses.",
+    enlace: "#galeria", textoEnlace: "Ver fotos de la aplicación" },
   { fecha: "2026-10-19", etiqueta: "Diagnóstico", img: "img/trabajo-colaborativo-2.jpg",
     titulo: "Inicia el diagnóstico de competencias de 6.° a 11.°",
     resumen: "Del 19 al 23 de octubre los estudiantes presentan el diagnóstico por niveles en este sitio. Valora seis competencias: razonamiento lógico-matemático, interpretación de datos, resolución de problemas, pensamiento computacional, creatividad y competencia digital.",
@@ -370,6 +374,14 @@ const NOTICIAS = [
    categoria: "Aula" | "Comunidad" | "Tecnología" | "Proyecto"
    ========================================================== */
 const GALERIA = [
+  { src: "img/aplicacion-diagnostico-5.jpg", titulo: "Estudiantes presentando el diagnóstico en equipo", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-1.jpg", titulo: "Pregunta de razonamiento lógico-matemático desde el celular", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-2.jpg", titulo: "Interpretación de datos en simultáneo", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-3.jpg", titulo: "Resolución de problemas con lápiz y celular", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-4.jpg", titulo: "Diagnóstico del Nivel II en el aula", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-7.jpg", titulo: "Diagnóstico del Nivel III en computador portátil", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-8.jpg", titulo: "Trabajo con celular y cuaderno durante la prueba", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
+  { src: "img/aplicacion-diagnostico-6.jpg", titulo: "Jornada de trabajo en el aula durante la semana diagnóstica", categoria: "Aplicación de prueba diagnóstica", fecha: "Octubre 2026" },
   { src: "img/trabajo-colaborativo-1.jpg", titulo: "Trabajo colaborativo en el aula", categoria: "Aula", fecha: "Octubre 2026" },
   { src: "img/trabajo-colaborativo-2.jpg", titulo: "Equipos resolviendo retos", categoria: "Aula", fecha: "Octubre 2026" },
   { src: "img/trabajo-colaborativo-3.jpg", titulo: "Razonar, analizar, crear y resolver", categoria: "Aula", fecha: "Octubre 2026" },

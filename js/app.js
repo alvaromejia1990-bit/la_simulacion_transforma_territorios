@@ -42,34 +42,143 @@
   const desempeno = nota => ESCALA.find(e => nota >= e.min);
   const badge = nota => { const d = desempeno(nota); return `<span class="desemp d-${d.clase}">${d.nombre}</span>`; };
 
-  /* ---------- Perfil del estudiante ---------- */
+  /* ---------- Perfil del estudiante (caracterización obligatoria + cuenta) ---------- */
+  const CAMPOS_OBLIG = ["nombre", "grado", "curso", "edad", "dispositivo", "internet", "zona", "conectividad", "problematica"];
+  const cursoValido = c => /^0[1-5]$/.test(String(c || ""));
+  // Convierte cursos antiguos («902», «1002», «2») al formato de la lista (01 a 05)
+  function cursoNorm(g, c) {
+    let x = String(c ?? "").replace(/\D/g, "");
+    if (x.length > 2 && x.indexOf(String(g)) === 0) x = x.slice(String(g).length);
+    return x ? ("0" + Number(x)).slice(-2) : "";
+  }
+  const perfilCompleto = p => !!p && CAMPOS_OBLIG.every(k => String(p[k] ?? "").trim() !== "") && cursoValido(p.curso);
+  const nivelDe = g => NIVELES.find(n => n.gradosNum.includes(Number(g))) || null;
+  const miNivel = () => (perfilCompleto(S.perfil) ? nivelDe(S.perfil.grado) : null);
+  if (S.perfil && !cursoValido(S.perfil.curso)) { const c = cursoNorm(S.perfil.grado, S.perfil.curso); if (cursoValido(c)) { S.perfil.curso = c; guardar(); } }
+
+  // Ejecuta la acción solo si la caracterización está completa; si no, abre el formulario
+  function conPerfil(cb) {
+    if (perfilCompleto(S.perfil)) return cb();
+    if (S.perfil) toast("Completa todas las casillas de tu caracterización");
+    pedirPerfil(cb);
+  }
+
   let perfilCallback = null;
   function pedirPerfil(cb) {
     perfilCallback = cb || null;
     const f = $("#perfilForm");
     if (S.perfil) {
-      f.nombre.value = S.perfil.nombre; f.grado.value = S.perfil.grado; f.curso.value = S.perfil.curso || "";
-      f.edad.value = S.perfil.edad || ""; f.dispositivo.value = S.perfil.dispositivo || ""; f.internet.value = S.perfil.internet || "";
-      f.zona.value = S.perfil.zona || ""; f.conectividad.value = S.perfil.conectividad || ""; f.problematica.value = S.perfil.problematica || "";
+      const p = S.perfil;
+      f.nombre.value = p.nombre || ""; f.grado.value = p.grado || ""; f.curso.value = cursoValido(p.curso) ? p.curso : "";
+      f.edad.value = p.edad || ""; f.dispositivo.value = p.dispositivo || ""; f.internet.value = p.internet || "";
+      f.zona.value = p.zona || ""; f.conectividad.value = p.conectividad || ""; f.problematica.value = p.problematica || "";
     }
     $("#perfilDlg").showModal();
   }
   $("#perfilForm").addEventListener("submit", e => {
     const f = e.target;
-    if (!f.nombre.value.trim() || !f.grado.value || !f.zona.value || !f.conectividad.value || !f.problematica.value) { e.preventDefault(); return; }
-    S.perfil = {
-      id: (S.perfil && S.perfil.id) || Nube.uid(),
-      nombre: f.nombre.value.trim(), grado: +f.grado.value, curso: f.curso.value.trim(),
-      edad: f.edad.value, dispositivo: f.dispositivo.value, internet: f.internet.value,
-      zona: f.zona.value, conectividad: f.conectividad.value, problematica: f.problematica.value
-    };
+    const datos = Object.fromEntries(CAMPOS_OBLIG.map(k => [k, String(f[k].value).trim()]));
+    if (!perfilCompleto(datos)) { e.preventDefault(); toast("Todas las casillas son obligatorias"); return; }
+    const antes = S.perfil || {};
+    S.perfil = Object.assign({}, antes, datos, { id: antes.id || Nube.uid(), grado: +datos.grado });
     guardar();
     Nube.registrar("caracterizacion", Object.assign(estudiante(), datosCar(S.perfil)));
     toast("Caracterización guardada");
-    renderProgreso();
-    if (perfilCallback) { const cb = perfilCallback; perfilCallback = null; setTimeout(cb, 50); }
+    aplicarNivel(); renderProgreso();
+    const cb = perfilCallback; perfilCallback = null;
+    asegurarCuenta(true).then(() => {
+      const mio = miNivel();
+      // Si el estudiante iba a trabajar en otro nivel, se lleva al suyo
+      if (mio && /^#nivel-/.test(location.hash) && location.hash !== "#nivel-" + mio.id) { location.hash = "#nivel-" + mio.id; return; }
+      if (cb) cb();
+    });
   });
   $("#perfilCancel").addEventListener("click", () => { perfilCallback = null; $("#perfilDlg").close(); });
+
+  // Asigna (o recupera) usuario y contraseña desde el servidor
+  async function asegurarCuenta(mostrar) {
+    if (!perfilCompleto(S.perfil) || S.perfil.usuario) return;
+    const c = await Nube.cuenta(S.perfil);
+    if (!c) { if (mostrar) toast("Tu usuario y contraseña se asignarán cuando haya conexión"); return; }
+    S.perfil.usuario = c.usuario; S.perfil.contrasena = c.contrasena; guardar(); renderProgreso();
+    await mostrarCredenciales();
+  }
+  function mostrarCredenciales() {
+    return new Promise(res => {
+      $("#credUsuario").textContent = S.perfil.usuario; $("#credClave").textContent = S.perfil.contrasena;
+      const d = $("#credDlg"); d.addEventListener("close", () => res(), { once: true }); d.showModal();
+    });
+  }
+
+  // Ingreso con usuario y contraseña (desde cualquier dispositivo)
+  function abrirLogin() {
+    if ($("#perfilDlg").open) $("#perfilDlg").close();
+    $("#loginMsg").className = "fb mal"; $("#loginForm").reset(); $("#loginDlg").showModal();
+  }
+  $("#irLogin").addEventListener("click", abrirLogin);
+  $("#loginCancel").addEventListener("click", () => $("#loginDlg").close());
+  $("#loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const f = e.target, msg = $("#loginMsg"), btn = $('button[type="submit"]', f);
+    btn.disabled = true; msg.className = "fb pista on"; msg.textContent = "Verificando…";
+    const r = await Nube.login(f.usuario.value, f.contrasena.value);
+    btn.disabled = false;
+    if (!r.ok) { msg.className = "fb mal on"; msg.textContent = r.error || "Usuario o contraseña incorrectos"; return; }
+    cargarDesdeServidor(r, f.contrasena.value.trim().toLowerCase());
+    $("#loginDlg").close();
+    toast(`¡Hola, ${S.perfil.nombre.split(" ")[0]}!`);
+    if (!perfilCompleto(S.perfil)) pedirPerfil();
+    location.hash = "#progreso"; renderProgreso();
+  });
+
+  // Reconstruye el perfil y los resultados del estudiante a partir de la hoja de cálculo
+  function cargarDesdeServidor(r, contrasena) {
+    const p = r.perfil, L = "ABCD";
+    const perfil = { id: p.id, nombre: String(p.nombre || ""), grado: +p.grado, curso: cursoNorm(p.grado, p.curso), edad: String(p.edad ?? ""),
+      dispositivo: String(p.dispositivo || ""), internet: String(p.internet || ""), zona: String(p.zona || ""), conectividad: String(p.conectividad || ""),
+      problematica: String(p.problematica || ""), usuario: r.usuario, contrasena };
+    const N = { perfil, diag: {}, retos: {}, sims: {}, intentos: {}, escenarios: 0 };
+    const confirmados = [];
+    (r.diagnosticos || []).forEach(d => {
+      const nv = NIVELES.find(n => nombreNivel(n) === d.nivel); if (!nv) return;
+      confirmados.push(idDia(perfil, nv, d.fecha));
+      if (N.diag[nv.id] && N.diag[nv.id].fecha > d.fecha) return;
+      const resp = Array(nv.diagnostico.length).fill(null);
+      String(d.respuestas || "").split(" ").forEach(t => { const m = t.match(/^(\d+):([A-D-])/); if (m && m[2] !== "-") resp[+m[1] - 1] = L.indexOf(m[2]); });
+      N.diag[nv.id] = { fecha: d.fecha, aciertos: +d.aciertos, total: +d.total || nv.diagnostico.length, nota: +d.nota,
+        comp: Object.fromEntries(Object.keys(COMPETENCIAS).map(k => [k, (+d.comp[k] || 0) / 100])), respuestas: resp };
+    });
+    (r.retos || []).forEach(x => {
+      const nid = String(x.reto).slice(0, 2);
+      N.intentos[x.reto] = Math.max(N.intentos[x.reto] || 0, +x.intento || 0);
+      if (x.correcta === "Sí") { (N.retos[nid] = N.retos[nid] || []); if (!N.retos[nid].includes(x.reto)) N.retos[nid].push(x.reto); confirmados.push(idRetoOk(perfil, x.reto)); }
+    });
+    (r.simulaciones || []).forEach(x => { const nv = NIVELES.find(n => nombreNivel(n) === x.nivel); if (nv) { N.sims[nv.id] = true; N.escenarios++; } });
+    if (perfilCompleto(perfil)) confirmados.push(idCar(perfil));
+    S = N; guardar(); Nube.marcar(confirmados);
+    NIVELES.forEach(n => { renderDiagInicio(n); renderRetos(n); });
+    aplicarNivel();
+  }
+
+  function cerrarSesion() {
+    const pend = Nube.estado().pendientes;
+    if (!confirm(pend ? `Hay ${pend} registro(s) aún sin enviar; se enviarán cuando haya conexión. ¿Cerrar sesión en este dispositivo?` : "¿Cerrar sesión en este dispositivo? Tus resultados quedan guardados en la base de datos.")) return;
+    S = { perfil: null, diag: {}, retos: {}, sims: {}, intentos: {} }; guardar();
+    NIVELES.forEach(n => { renderDiagInicio(n); renderRetos(n); });
+    aplicarNivel(); renderProgreso(); toast("Sesión cerrada");
+  }
+
+  // Solo se habilitan los recursos del nivel que corresponde al grado registrado
+  function aplicarNivel() {
+    const mio = miNivel();
+    $$(".nav a.lv").forEach(a => a.classList.toggle("oculto", !!mio && a.getAttribute("href") !== "#nivel-" + mio.id));
+    $$("#nivelCards .ncard").forEach(c => {
+      const id = c.getAttribute("href").replace("#nivel-", "");
+      c.classList.toggle("mio", !!mio && id === mio.id);
+      c.classList.toggle("bloq", !!mio && id !== mio.id);
+      const m = $(".marca", c); if (m) { m.hidden = !mio; m.textContent = mio && id === mio.id ? "Tu nivel" : "No corresponde a tu grado"; }
+    });
+  }
 
   /* ---------- Tarjetas de nivel en inicio ---------- */
   $("#nivelCards").innerHTML = NIVELES.map(n => `
@@ -79,11 +188,16 @@
         <h3>${n.nombre}</h3>
       </div>
       <div class="ncard-body">
+        <span class="marca" hidden></span>
         <b>${n.tema}</b>
         <p>${n.descripcion}</p>
         <div class="espacios"><span>Diagnóstico</span><span>${n.retos.length} retos</span><span>Simulación</span></div>
       </div>
     </a>`).join("");
+
+  $$("#nivelCards .ncard").forEach(c => c.addEventListener("click", e => {
+    if (c.classList.contains("bloq")) { e.preventDefault(); toast("Este nivel no corresponde a tu grado"); }
+  }));
 
   /* ---------- Vistas de nivel ---------- */
   const ICON = {
@@ -144,7 +258,7 @@
         guardar(); renderProgreso();
         toast("Escenario guardado");
       };
-      S.perfil ? go() : pedirPerfil(go);
+      conPerfil(go);
     });
   }
 
@@ -185,7 +299,7 @@
         estado[n.id] = { i: 0, r: Array(n.diagnostico.length).fill(null) };
         renderPregunta(n);
       };
-      S.perfil ? go() : pedirPerfil(go);
+      conPerfil(go);
     });
     const ver = $('[data-act="ver"]', host);
     if (ver) ver.addEventListener("click", () => renderResultado(n, S.diag[n.id]));
@@ -339,7 +453,7 @@
           nivel: nombreNivel(n), reto: r.id, titulo: r.titulo, respuesta: inp.value.trim(),
           correcta: bien ? "Sí" : "No", intento: S.intentos[r.id]
         }));
-        S.perfil ? enviar() : pedirPerfil(enviar);
+        conPerfil(enviar);
         if (bien) {
           fb.className = "fb resultado ok on"; fb.innerHTML = `<b>¡Correcto!</b> ${r.solucion}`;
           card.classList.add("hecho");
@@ -397,54 +511,82 @@
   function renderProgreso() {
     const host = $("#progresoBody");
     const p = S.perfil;
-    const cabecera = p ? `
+    const avisoNube = `<p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.9</small><br>Tus resultados se envían automáticamente a la base de datos del Centro de Interés, que solo consultan los administradores. Con tu usuario y contraseña puedes ver este perfil desde cualquier dispositivo. Si usas un computador compartido, cierra sesión al terminar.</p>`;
+    if (!p) {
+      host.innerHTML = `<div class="vacio">
+          <h3>Ingresa o regístrate</h3>
+          <p>Para presentar el diagnóstico, resolver los retos y guardar simulaciones debes diligenciar tu caracterización. Al terminar recibirás tu usuario y contraseña.</p>
+          <div class="btns" style="justify-content:center"><button class="btn btn-rosa" data-act="editar">Registrarme</button><button class="btn btn-line" data-act="login">Ya tengo usuario</button></div>
+        </div>` + avisoNube;
+      $('[data-act="editar"]', host).addEventListener("click", () => pedirPerfil());
+      $('[data-act="login"]', host).addEventListener("click", abrirLogin);
+      pintarNube(); return;
+    }
+    const nv = nivelDe(p.grado) || NIVELES[0];
+    const completo = perfilCompleto(p);
+    const dg = S.diag[nv.id], resueltos = (S.retos[nv.id] || []), rt = resueltos.length, sm = !!S.sims[nv.id];
+    const nRet = nv.retos.length;
+    const avance = Math.round(((completo ? 1 : 0) + (dg ? 1 : 0) + rt / nRet + (sm ? 1 : 0)) / 4 * 100);
+    const paso = (ok, n, t, d, href) => `<a class="paso ${ok ? "ok" : ""}" href="${href}" style="text-decoration:none"><i>${ok ? "✔" : n}</i><div><b>${t}</b><span>${d}</span></div></a>`;
+    host.innerHTML = `
       <div class="perfil-card">
-        <div class="avatar">${esc(p.nombre.trim()[0] || "?").toUpperCase()}</div>
-        <div><h3>${esc(p.nombre)}</h3><p>Grado ${p.grado}°${p.curso ? " · Curso " + esc(p.curso) : ""}</p></div>
+        <div class="avatar">${esc((p.nombre || "?").trim()[0] || "?").toUpperCase()}</div>
+        <div><h3>${esc(p.nombre)}</h3><p>Grado ${esc(p.grado)}.° · Curso ${esc(p.curso || "—")} · ${esc(nombreNivel(nv))}</p>
+          <p>${p.usuario ? `Usuario: <b>${esc(p.usuario)}</b> · Contraseña: <b id="miClave">••••••</b> <button class="link-btn" id="verClave">mostrar</button>`
+            : `<span class="estado-chip">Usuario pendiente: se asigna automáticamente con conexión</span>`}</p></div>
         <div class="acciones">
-          <button class="btn btn-line btn-sm" data-act="editar">Editar datos</button>
-          <button class="btn btn-celeste btn-sm" data-act="csv">Descargar reporte (CSV)</button>
+          <a class="btn btn-rosa btn-sm" href="#nivel-${nv.id}">Ir a mi nivel</a>
+          <button class="btn btn-line btn-sm" data-act="editar">Editar caracterización</button>
+          <button class="btn btn-line btn-sm" data-act="csv">Descargar reporte</button>
           <button class="btn btn-line btn-sm" data-act="imprimir">Imprimir / PDF</button>
-          <button class="btn btn-line btn-sm" data-act="borrar">Borrar mis datos</button>
+          <button class="btn btn-line btn-sm" data-act="salir">Cerrar sesión</button>
         </div>
-      </div>` : `
-      <div class="vacio">
-        <h3>Aún no te has registrado</h3>
-        <p>Regístrate para guardar tus resultados del diagnóstico, los retos y las simulaciones.</p>
-        <button class="btn btn-rosa" data-act="editar">Registrarme</button>
-      </div>`;
-    const tarjetas = NIVELES.map(n => {
-      const dg = S.diag[n.id], rt = (S.retos[n.id] || []).length, sm = !!S.sims[n.id];
-      const comp = dg ? `<div class="mini-comp">${Object.entries(COMPETENCIAS).map(([k, c]) => {
-        const v = dg.comp[k] || 0; return `<div><span>${c.nombre}</span>${badge(notaDe(v))}<div class="track"><i style="width:${Math.max(v * 100, 2)}%"></i></div></div>`;
-      }).join("")}</div>` : "";
-      return `<div class="prog-card">
-        <div class="ncard-top bg-${n.color}" data-num="${n.numero}"><small>Grados ${n.grados}</small><h3>${n.nombre}</h3></div>
-        <div class="prog-body">
-          <div class="prog-line"><span>Diagnóstico</span>${dg ? `<span><b>${dg.nota.toFixed(1)}</b> ${badge(dg.nota)}</span>` : `<a href="#nivel-${n.id}">Pendiente</a>`}</div>
-          ${comp}
-          <div class="prog-line"><span>Retos resueltos</span><b>${rt} / ${n.retos.length}</b></div>
-          <div class="prog-line"><span>Simulación explorada</span><b>${sm ? "Sí ✔" : "No"}</b></div>
-        </div></div>`;
-    }).join("");
-    host.innerHTML = cabecera + `<div class="prog-grid" style="margin-top:8px">${tarjetas}</div>
-      <p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.8</small><br>Tu caracterización, diagnósticos, retos y escenarios se envían a la base de datos del Centro de Interés en Google Drive, que solo pueden consultar los administradores. El envío es automático: si no hay internet, se guardan aquí y se envían solos cuando vuelva la conexión. También puedes descargar tu reporte (CSV) o imprimirlo. Si usas un computador compartido, borra tus datos de este navegador al terminar.</p>`;
+      </div>
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px">
+        <div class="kpi k-rosa"><span>Avance general</span><b>${avance} %</b></div>
+        <div class="kpi"><span>Nota del diagnóstico</span><b>${dg ? dg.nota.toFixed(1) : "—"}</b>${dg ? " " + badge(dg.nota) : ""}</div>
+        <div class="kpi k-cel"><span>Retos resueltos</span><b>${rt} / ${nRet}</b></div>
+        <div class="kpi"><span>Escenarios guardados</span><b>${S.escenarios || (sm ? 1 : 0)}</b></div>
+      </div>
+      <div class="barra-avance"><i style="width:${Math.max(avance, 2)}%"></i></div>
+      <p class="sub" style="margin:0 0 18px">Ruta de tu nivel: completa los cuatro pasos para llegar al 100 %.</p>
+      <div class="ruta-est">
+        ${paso(completo, 1, "Caracterización", completo ? "Completa" : "Faltan casillas", "#progreso")}
+        ${paso(!!dg, 2, "Diagnóstico", dg ? `${dg.aciertos} de ${dg.total} correctas` : "Pendiente", `#nivel-${nv.id}`)}
+        ${paso(rt >= nRet, 3, "Retos", `${rt} de ${nRet} resueltos`, `#nivel-${nv.id}`)}
+        ${paso(sm, 4, "Simulación", sm ? "Escenario explorado" : "Pendiente", `#nivel-${nv.id}`)}
+      </div>
+      <div class="dash-grid">
+        <section class="dash-card"><h3>Mis resultados por competencia</h3><p class="sub">Porcentaje de logro en el diagnóstico del ${esc(nv.nombre)}.</p>
+          <div class="chart" id="miComp"></div><div class="analisis" id="miComp-an"></div></section>
+        <section class="dash-card"><h3>Mis retos y simulación</h3><p class="sub">Estado de las actividades de tu nivel.</p>
+          <ol class="top-list">${nv.retos.map((r, i) => { const ok = resueltos.includes(r.id), it = (S.intentos || {})[r.id] || 0;
+            return `<li><span class="pos" style="${ok ? "background:var(--ok)" : "background:var(--gris-2)"}">${ok ? "✔" : i + 1}</span><span><b>${esc(r.titulo)}</b><br><small>${ok ? "Resuelto" : it ? "En proceso" : "Sin intentar"} · ${it} intento(s)</small></span><span class="pilar-chip">${esc(r.pilar)}</span></li>`; }).join("")}
+            <li><span class="pos" style="${sm ? "background:var(--ok)" : "background:var(--gris-2)"}">${sm ? "✔" : "S"}</span><span><b>Simulación del nivel</b><br><small>${sm ? `${S.escenarios || 1} escenario(s) guardado(s)` : "Explora y guarda tu escenario con conclusiones"}</small></span><span class="pilar-chip">Crear</span></li>
+          </ol></section>
+      </div>` + avisoNube;
+    if (dg) {
+      const cortos = { razonamiento: "Razonamiento", datos: "Datos", problemas: "Problemas", computacional: "Computacional", creatividad: "Creatividad", digital: "Digital" };
+      const ks = Object.keys(COMPETENCIAS), vals = ks.map(k => Math.round((dg.comp[k] || 0) * 100));
+      barChart($("#miComp"), { cats: ks.map(k => cortos[k]), series: [{ name: "Logro", color: COL.celeste, values: vals }], unidad: "%" });
+      const mx = vals.indexOf(Math.max(...vals)), mn = vals.indexOf(Math.min(...vals));
+      $("#miComp-an").innerHTML = `<div class="cuanti"><span class="t">Tus números</span>Nota ${dg.nota.toFixed(1)} (${desempeno(dg.nota).nombre}) con ${dg.aciertos} de ${dg.total} respuestas correctas. Tu mejor competencia es <b>${COMPETENCIAS[ks[mx]].nombre.toLowerCase()}</b> (${vals[mx]} %).</div>
+        <div class="cuali"><span class="t">Recomendación</span>${vals[mn] === vals[mx] ? "Tu desempeño es parejo en todas las competencias. ¡Sigue con los retos!" : `Refuerza <b>${COMPETENCIAS[ks[mn]].nombre.toLowerCase()}</b> (${vals[mn]} %): revisa las explicaciones del diagnóstico y practica con los retos de tu nivel.`}</div>`;
+    } else {
+      $("#miComp").innerHTML = `<div class="dash-aviso">Aún no has presentado el diagnóstico. <a href="#nivel-${nv.id}">Presentarlo ahora</a></div>`;
+    }
     pintarNube();
-    $$('[data-act="editar"]', host).forEach(b => b.addEventListener("click", () => pedirPerfil()));
-    const csv = $('[data-act="csv"]', host); if (csv) csv.addEventListener("click", descargarCSV);
-    const imp = $('[data-act="imprimir"]', host); if (imp) imp.addEventListener("click", () => window.print());
-    const bor = $('[data-act="borrar"]', host); if (bor) bor.addEventListener("click", () => {
-      if (!confirm("¿Borrar tus datos y resultados de este navegador?")) return;
-      S = { perfil: null, diag: {}, retos: {}, sims: {}, intentos: {} }; guardar();
-      NIVELES.forEach(n => { renderDiagInicio(n); renderRetos(n); });
-      renderProgreso(); toast("Datos borrados");
-    });
+    const ver = $("#verClave"); if (ver) ver.addEventListener("click", () => { const c = $("#miClave"); const oculto = c.textContent.startsWith("•"); c.textContent = oculto ? p.contrasena : "••••••"; ver.textContent = oculto ? "ocultar" : "mostrar"; });
+    $('[data-act="editar"]', host).addEventListener("click", () => pedirPerfil());
+    $('[data-act="csv"]', host).addEventListener("click", descargarCSV);
+    $('[data-act="imprimir"]', host).addEventListener("click", () => window.print());
+    $('[data-act="salir"]', host).addEventListener("click", cerrarSesion);
   }
 
   // Sincronización automática: pone en cola lo guardado en este navegador que la nube aún no confirmó.
   // Se ejecuta sola (al abrir el sitio, al volver a la pestaña, al recuperar internet y cada 5 minutos).
   function sincronizar() {
-    if (!S.perfil || !Nube.estado().activa) return;
+    if (!perfilCompleto(S.perfil) || !Nube.estado().activa) return;
     const p = S.perfil;
     if (!p.id) { p.id = Nube.uid(); guardar(); }
     const pendiente = id => !Nube.confirmado(id);
@@ -693,7 +835,7 @@
   const AVISO_V2 = "Este indicador requiere la versión 2 del script (Code.gs). Pegue el código actualizado en Apps Script y publique una <b>nueva versión</b> de la misma implementación; la URL, los permisos y la hoja no cambian.";
 
   function renderAdmin(r) {
-    const v2 = r.version === 2, t = r.totales;
+    const v2 = (r.version || 1) >= 2, v3 = (r.version || 1) >= 3, t = r.totales;
     const part = v2 ? r.participacion : { caracterizacion: t.estudiantes, diagnostico: null, retos: null, retosResueltos: null, simulaciones: null, completos: null, totalEstudiantes: t.estudiantes };
     const simNivel = v2 ? r.simPorNivel : Object.entries(r.simulaciones || {}).reduce((o, [k, n]) => { const nv = NIVEL_SIM[k] || k; o[nv] = (o[nv] || 0) + n; return o; }, {});
     const totSim = Object.values(simNivel).reduce((a, b) => a + b, 0);
@@ -702,7 +844,7 @@
     $("#adminBody").innerHTML = `
       <div class="perfil-card">
         <div class="avatar">A</div>
-        <div><h3>Dashboard · ${esc(r.hojaDeCalculo)}</h3><p>Datos consultados el ${new Date().toLocaleString("es-CO")}${v2 ? "" : " · script versión 1"}</p></div>
+        <div><h3>Dashboard · ${esc(r.hojaDeCalculo)}</h3><p>Datos consultados el ${new Date().toLocaleString("es-CO")}${v2 ? "" : " · script versión ${r.version || 1}"}</p></div>
         <div class="acciones">
           <a class="btn btn-celeste btn-sm" href="${esc(r.url)}" target="_blank" rel="noopener">Abrir Google Sheets</a>
           <button class="btn btn-line btn-sm" id="admRef">Actualizar</button>
@@ -719,6 +861,10 @@
       ${v2 ? "" : `<div class="dash-aviso" style="margin-bottom:22px">El script de Google conectado es la <b>versión 1</b>: se muestran los indicadores disponibles. ${AVISO_V2}</div>`}
       ${r.ultimoError ? `<p class="aviso" style="margin:0 0 24px">Último error reportado por el script: <code>${esc(r.ultimoError)}</code></p>` : ""}
       <div class="dash-grid">
+        <section class="dash-card full"><h3>Estudiantes que han realizado cada recurso por grado y curso</h3>
+          <p class="sub">Gráfico dinámico: elija «Todos los grados» para comparar grados, o un grado para ver sus cursos.</p>
+          <div class="filtro-dash"><select id="rcSel"><option value="">Todos los grados</option>${[6, 7, 8, 9, 10, 11].map(g => `<option value="${g}">Grado ${g}.° por curso</option>`).join("")}</select></div>
+          <div class="chart" id="dRec"></div><div id="dRec-leg"></div><div class="analisis" id="dRec-an"></div></section>
         ${tarjeta("dVis", "Visitas al sitio", "Visitas y visitantes por día durante los últimos 30 días.", true)}
         ${tarjeta("dSec", "Visitas por sección", "Secciones más consultadas en los últimos 30 días.")}
         ${tarjeta("dPart", "Estudiantes participando por sección", "Estudiantes distintos que han usado cada espacio del sitio.")}
@@ -729,6 +875,13 @@
           <div class="filtro-dash"><select id="pfGrado"><option value="">Todos los grados</option>${[6, 7, 8, 9, 10, 11].map(g => `<option value="${g}">${g}.°</option>`).join("")}</select>
           <input id="pfBuscar" placeholder="Buscar estudiante o curso"><button class="btn btn-line btn-sm" id="pfCsv">Descargar listado (CSV)</button></div>
           <div id="dPend"></div><div class="analisis" id="dPend-an"></div></section>
+        <section class="dash-card full"><h3>Usuarios y contraseñas de los estudiantes</h3>
+          <p class="sub">Acceso exclusivo del administrador. Al cargar el listado se crean automáticamente las cuentas de los estudiantes registrados que aún no tenían usuario.</p>
+          <div class="filtro-dash"><button class="btn btn-rosa btn-sm" id="ctCargar">Cargar listado de usuarios</button>
+            <select id="ctGrado" hidden><option value="">Todos los grados</option>${[6, 7, 8, 9, 10, 11].map(g => `<option value="${g}">${g}.°</option>`).join("")}</select>
+            <input id="ctBuscar" placeholder="Buscar estudiante o usuario" hidden>
+            <button class="btn btn-line btn-sm" id="ctCsv" hidden>Descargar (CSV)</button></div>
+          <div id="dCuentas"></div></section>
         ${tarjeta("dTerr", "Caracterización tecnológica y territorial", "Zona de residencia, conectividad principal y problemática de interés de los estudiantes.", true)}
         <section class="dash-card full"><h3>Línea base por nivel y competencia</h3><p class="sub">Porcentaje de logro promedio en cada competencia del diagnóstico.</p><div class="prog-grid" id="dComp"></div><div class="analisis" id="dComp-an"></div></section>
         <section class="dash-card full"><h3>Desempeño en los retos</h3><div id="dRetos"></div></section>
@@ -737,6 +890,68 @@
       <p class="aviso">Los análisis se generan automáticamente a partir de los datos de la hoja de cálculo y deben leerse junto con el criterio pedagógico del equipo docente.</p>`;
     $("#admRef").addEventListener("click", () => cargarAdmin(claveAdmin.get()));
     $("#admOut").addEventListener("click", () => { claveAdmin.set(""); adminLogin(); toast("Sesión de administrador cerrada"); });
+
+    /* 0. Recursos realizados por grado / curso (gráfico dinámico) */
+    const AVISO_V3 = "Este indicador requiere la versión 3 del script (Code_v3.gs). Pegue el código en Apps Script y publique una <b>nueva versión</b> de la misma implementación.";
+    if (!v3) { sinDatos("dRec", AVISO_V3); $("#rcSel").hidden = true; }
+    else {
+      const RC = Object.values(r.recursosPorCurso || {});
+      const SER = [["caracterizacion", "Caracterización", COL.azul], ["diagnostico", "Diagnóstico", COL.rosa], ["retos", "Retos", COL.celeste], ["simulacion", "Simulación", "#8A5BB8"]];
+      const pintarRec = () => {
+        const g = $("#rcSel").value;
+        let grupos;
+        if (!g) grupos = [6, 7, 8, 9, 10, 11].map(x => { const l = RC.filter(e => e.grado === x); return { cat: x + ".°", ...["estudiantes", ...SER.map(z => z[0])].reduce((o, k) => (o[k] = l.reduce((a, e) => a + e[k], 0), o), {}) }; }).filter(x => x.estudiantes);
+        else grupos = RC.filter(e => e.grado === +g).sort((a, b) => String(a.curso).localeCompare(String(b.curso))).map(e => ({ cat: e.curso === "sin curso" ? "Sin curso" : `${g}-${e.curso}`, ...e }));
+        if (!grupos.length) { $("#dRec").innerHTML = `<div class="dash-aviso">Sin estudiantes registrados ${g ? "en este grado" : "todavía"}.</div>`; $("#dRec-leg").innerHTML = ""; $("#dRec-an").innerHTML = ""; return; }
+        const series = SER.map(([k, nom, col]) => ({ name: nom, color: col, values: grupos.map(x => x[k]) }));
+        barChart($("#dRec"), { cats: grupos.map(x => x.cat), series, unidad: "estudiantes" });
+        $("#dRec-leg").innerHTML = leyenda(series);
+        const tot = grupos.reduce((a, x) => a + x.estudiantes, 0);
+        const tasas = SER.map(([k, nom]) => [nom, pct(grupos.reduce((a, x) => a + x[k], 0), tot)]);
+        const tasaDiag = grupos.map(x => ({ cat: x.cat, v: pct(x.diagnostico, x.estudiantes), n: x.estudiantes }));
+        const mejor = tasaDiag.reduce((a, b) => b.v > a.v ? b : a), peor = tasaDiag.reduce((a, b) => b.v < a.v ? b : a);
+        const debil = tasas.slice(1).sort((a, b) => a[1] - b[1])[0];
+        analisis("dRec",
+          `${g ? `Grado ${g}.°: ` : ""}<b>${tot}</b> estudiantes registrados. Realizaron: ${tasas.map(([n, v]) => `${n.toLowerCase()} ${v} %`).join(", ")}. ${grupos.length > 1 ? `Mayor cobertura del diagnóstico: <b>${mejor.cat}</b> (${mejor.v} %); menor: <b>${peor.cat}</b> (${peor.v} %).` : ""}`,
+          `El recurso con menor realización es <b>${debil[0].toLowerCase()}</b> (${debil[1]} %). ${grupos.length > 1 && peor.v < 60 ? `Conviene programar con ${g ? "el curso" : "el grado"} ${peor.cat} un espacio de aula para ponerse al día${g ? "" : ` (responsable: ${DOCENTE_GRADO[parseInt(peor.cat)] || "por asignar"})`}.` : (grupos.length > 1 ? "La cobertura es homogénea entre " + (g ? "cursos" : "grados") : "Por ahora hay un solo " + (g ? "curso" : "grado") + " con registros") + "; el reto ahora es completar los recursos de mayor profundidad (retos y simulación)."}`);
+      };
+      $("#rcSel").addEventListener("change", pintarRec); pintarRec();
+    }
+
+    /* Cuentas de estudiantes (solo administrador) */
+    if (!v3) { $("#dCuentas").innerHTML = `<div class="dash-aviso">${AVISO_V3}</div>`; $("#ctCargar").hidden = true; }
+    else {
+      let cuentas = [];
+      const pintarCuentas = () => {
+        const g = $("#ctGrado").value, q = $("#ctBuscar").value.trim().toLowerCase();
+        const l = cuentas.filter(c => (!g || String(c.grado) === g) && (!q || `${c.nombre} ${c.usuario} ${c.curso}`.toLowerCase().includes(q)));
+        $("#dCuentas").innerHTML = l.length ? `<div class="tabla-wrap" style="max-height:460px;overflow:auto"><table class="tabla cuentas-tabla"><thead><tr><th>Estudiante</th><th>Grado / curso</th><th>Usuario</th><th>Contraseña</th><th></th></tr></thead><tbody>${
+          l.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.grado)}.° ${esc(cursoNorm(c.grado, c.curso) || c.curso || "")}</td><td><code>${esc(c.usuario)}</code></td><td><code>${esc(c.contrasena)}</code></td><td><button class="link-btn" data-u="${esc(c.usuario)}">Restablecer</button></td></tr>`).join("")}</tbody></table></div><p class="sub" style="margin-top:6px">${l.length} cuenta(s) en el filtro · ${cuentas.length} en total.</p>`
+          : `<div class="dash-aviso">${cuentas.length ? "Ninguna cuenta coincide con el filtro." : "Aún no hay cuentas."}</div>`;
+        $$("#dCuentas [data-u]").forEach(b => b.addEventListener("click", async () => {
+          if (!confirm(`¿Generar una contraseña nueva para «${b.dataset.u}»? La anterior dejará de funcionar.`)) return;
+          const x = await Nube.admin(claveAdmin.get(), { accion: "restablecer", usuario: b.dataset.u });
+          if (x.ok) { const c = cuentas.find(c => c.usuario === x.usuario); if (c) c.contrasena = x.contrasena; pintarCuentas(); toast("Contraseña restablecida"); } else toast(x.error || "No fue posible restablecer");
+        }));
+      };
+      $("#ctCargar").addEventListener("click", async () => {
+        $("#dCuentas").innerHTML = `<div class="dash-aviso">Cargando y creando cuentas pendientes…</div>`;
+        const x = await Nube.admin(claveAdmin.get(), { accion: "cuentas" });
+        if (!x.ok) { $("#dCuentas").innerHTML = `<div class="dash-aviso">${esc(x.error || "No fue posible cargar el listado")}</div>`; return; }
+        cuentas = x.cuentas || [];
+        ["#ctGrado", "#ctBuscar", "#ctCsv"].forEach(id => $(id).hidden = false);
+        $("#ctCargar").textContent = "Actualizar listado";
+        if (x.creadas) toast(`Se crearon ${x.creadas} cuenta(s) para estudiantes ya registrados`);
+        pintarCuentas();
+      });
+      $("#ctGrado").addEventListener("change", pintarCuentas); $("#ctBuscar").addEventListener("input", pintarCuentas);
+      $("#ctCsv").addEventListener("click", () => {
+        const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const filas = [["Estudiante", "Grado", "Curso", "Usuario", "Contraseña"].map(q).join(";"), ...cuentas.map(c => [c.nombre, c.grado, cursoNorm(c.grado, c.curso) || c.curso, c.usuario, c.contrasena].map(q).join(";"))];
+        const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + filas.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+        a.download = "usuarios_estudiantes_RACR.csv"; document.body.append(a); a.click(); a.remove();
+      });
+    }
 
     /* 1. Visitas por día */
     if (!vis) { sinDatos("dVis", AVISO_V2); sinDatos("dSec", AVISO_V2); }
@@ -910,6 +1125,11 @@
     const h = (location.hash || "#inicio").slice(1);
     const subProyecto = { proyecto: "info", noticias: "noticias", galeria: "galeria", informes: "informes", redes: "redes" }[h];
     let vista = subProyecto ? "proyecto" : VISTAS.includes(h) ? h : "inicio";
+    // Un estudiante registrado solo accede a los recursos de su nivel
+    const mio = miNivel();
+    if (mio && vista.startsWith("nivel-") && vista !== "nivel-" + mio.id) {
+      toast(`Tu grado corresponde al ${mio.nombre}`); location.replace("#nivel-" + mio.id); return;
+    }
     if (subProyecto) tabProyecto(subProyecto);
     $$(".view").forEach(v => v.classList.toggle("on", v.id === vista));
     $$(".nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + vista));
@@ -934,10 +1154,14 @@
   renderProgreso();
   navegar();
   setTimeout(sincronizar, 1200);
-  // Estudiantes registrados antes de la versión 1.8: se les pide responder las 3 preguntas nuevas (una vez por sesión)
-  if (S.perfil && !S.perfil.zona) {
+  aplicarNivel();
+  // Estudiantes registrados antes: se les pide completar las casillas obligatorias (una vez por sesión)
+  if (S.perfil && !perfilCompleto(S.perfil)) {
     let pedido = false; try { pedido = !!sessionStorage.getItem("ci-ensma-car-nueva"); sessionStorage.setItem("ci-ensma-car-nueva", "1"); } catch (e) {}
-    if (!pedido) setTimeout(() => { toast("Responde 3 preguntas nuevas sobre tu territorio"); pedirPerfil(); }, 2500);
+    if (!pedido) setTimeout(() => { toast("Completa tu caracterización para recibir tu usuario"); pedirPerfil(); }, 2500);
+  } else if (S.perfil && !S.perfil.usuario) {
+    // Estudiantes ya registrados: se les asigna usuario y contraseña automáticamente
+    setTimeout(() => asegurarCuenta(true), 2500);
   }
   setInterval(sincronizar, 5 * 60 * 1000);
   window.addEventListener("online", sincronizar);

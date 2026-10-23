@@ -612,6 +612,32 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
 .filtro-dash { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .filtro-dash select, .filtro-dash input { padding: 8px 10px; border: 1.5px solid var(--borde); border-radius: var(--r-s); font: 400 .88rem var(--f-txt); }
 
+/* ---------- Cuentas de estudiante ---------- */
+.cred { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; align-items: center; background: var(--celeste-50); border-radius: var(--r-m); padding: 16px 18px; }
+.cred span { font-size: .8rem; color: var(--gris); }
+.cred b { font: 800 1.5rem/1.2 var(--f-tit); color: var(--azul); letter-spacing: .03em; word-break: break-all; }
+#loginDlg .fb { margin: 0; }
+.nav a.oculto { display: none; }
+.ncard.bloq { opacity: .45; filter: grayscale(.6); cursor: not-allowed; }
+.ncard.mio { outline: 3px solid var(--rosa); outline-offset: 3px; }
+.ncard .marca { align-self: flex-start; font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--rosa); color: #fff; }
+.ncard.bloq .marca { background: var(--gris-2); }
+.bloqueo { max-width: 640px; margin: 40px auto; text-align: center; border: 2px dashed var(--borde); border-radius: var(--r-l); padding: 36px 24px; color: var(--gris); }
+.bloqueo h3 { margin-bottom: .4em; }
+/* Dashboard del estudiante */
+.ruta-est { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 0 22px; }
+.paso { border: 1px solid var(--borde); border-radius: var(--r-m); padding: 14px 16px; display: flex; gap: 12px; align-items: center; background: #fff; }
+.paso i { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 800; background: var(--fondo-2); color: var(--gris); }
+.paso.ok { border-color: var(--ok); background: var(--ok-50); }
+.paso.ok i { background: var(--ok); color: #fff; }
+.paso b { display: block; color: var(--azul); font-size: .92rem; }
+.paso span { font-size: .78rem; color: var(--gris); }
+.barra-avance { height: 14px; border-radius: 99px; background: var(--fondo-2); overflow: hidden; margin: 6px 0 4px; }
+.barra-avance i { display: block; height: 100%; background: linear-gradient(90deg, var(--rosa), var(--celeste)); border-radius: 99px; }
+.cuentas-tabla td code { font-size: .95rem; font-weight: 700; color: var(--azul); background: var(--celeste-50); }
+
+.kpi .desemp { display: inline-block; font-size: .72rem; padding: 2px 9px; vertical-align: 4px; }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 1020px) {
   .menu-btn { display: block; }
@@ -628,6 +654,7 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
   .nivel-cards, .retos, .prog-grid { grid-template-columns: 1fr; }
   .noticias { grid-template-columns: 1fr; }
   .dash-grid { grid-template-columns: 1fr; }
+  .ruta-est { grid-template-columns: 1fr 1fr; }
   .redes { grid-template-columns: 1fr; }
   #adminBody .kpis { grid-template-columns: repeat(3, 1fr) !important; }
   .galeria-full { grid-template-columns: 1fr 1fr; }
