@@ -511,7 +511,7 @@
   function renderProgreso() {
     const host = $("#progresoBody");
     const p = S.perfil;
-    const avisoNube = `<p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.9</small><br>Tus resultados se envían automáticamente a la base de datos del Centro de Interés, que solo consultan los administradores. Con tu usuario y contraseña puedes ver este perfil desde cualquier dispositivo. Si usas un computador compartido, cierra sesión al terminar.</p>`;
+    const avisoNube = `<p class="aviso"><span class="nube" id="nubeEstado"></span> <small style="color:var(--gris-2)">Versión del sitio 1.9.1</small><br>Tus resultados se envían automáticamente a la base de datos del Centro de Interés, que solo consultan los administradores. Con tu usuario y contraseña puedes ver este perfil desde cualquier dispositivo. Si usas un computador compartido, cierra sesión al terminar.</p>`;
     if (!p) {
       host.innerHTML = `<div class="vacio">
           <h3>Ingresa o regístrate</h3>

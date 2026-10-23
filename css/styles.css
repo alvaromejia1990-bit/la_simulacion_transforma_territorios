@@ -638,6 +638,10 @@ dialog input:focus, dialog select:focus { outline: none; border-color: var(--cel
 
 .kpi .desemp { display: inline-block; font-size: .72rem; padding: 2px 9px; vertical-align: 4px; }
 
+/* ---------- Logos 1.9.1 ---------- */
+.brand img { background: #fff; object-fit: contain; padding: 2px; }
+.footer img.footer-logo { border-radius: 0; width: 220px; height: auto; background: #fff; border-radius: var(--r-s); padding: 6px; }
+
 /* ---------- Responsivo ---------- */
 @media (max-width: 1020px) {
   .menu-btn { display: block; }

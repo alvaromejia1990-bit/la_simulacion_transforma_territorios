@@ -387,6 +387,8 @@ const GALERIA = [
   { src: "img/trabajo-colaborativo-3.jpg", titulo: "Razonar, analizar, crear y resolver", categoria: "Aula", fecha: "Octubre 2026" },
   { src: "img/tecnologia-aula.jpg", titulo: "Tecnología para aprender", categoria: "Tecnología", fecha: "2026" },
   { src: "img/comunidad-ensma.jpg", titulo: "Comunidad educativa ENSMA", categoria: "Comunidad", fecha: "2026" },
+  { src: "img/logo-ci-horizontal.jpg", titulo: "Identidad del Centro de Interés", categoria: "Proyecto", fecha: "Octubre 2026" },
+  { src: "img/logo-ci.jpg", titulo: "Logo circular del Centro de Interés", categoria: "Proyecto", fecha: "Octubre 2026" },
   { src: "img/logo-pmc.jpg", titulo: "Identidad del proyecto RACR", categoria: "Proyecto", fecha: "Octubre 2026" }
 ];
 
